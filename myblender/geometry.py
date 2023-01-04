@@ -1,0 +1,183 @@
+'''
+  @ Date: 2022-04-24 15:39:58
+  @ Author: Qing Shuai
+  @ Mail: s_q@zju.edu.cn
+  @ LastEditors: Qing Shuai
+  @ LastEditTime: 2022-11-15 15:13:34
+  @ FilePath: /EasyMocapPublic/easymocap/blender/geometry.py
+'''
+import bpy
+import os
+from os.path import join
+from .material import set_material_i, set_principled_node, add_material
+import numpy as np
+from mathutils import Matrix, Vector, Quaternion, Euler
+
+log = print
+
+assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'objs'))
+
+
+
+def myimport(filename):
+    keys_old = set(bpy.data.objects.keys())
+    mat_old = set(bpy.data.materials.keys())
+    image_old = set(bpy.data.images.keys())
+    if filename.endswith('.obj'):
+        bpy.ops.import_scene.obj(filepath=filename, axis_forward='X', axis_up='Z')
+    keys_new = set(bpy.data.objects.keys())
+    mat_new = set(bpy.data.materials.keys())
+    image_new = set(bpy.data.images.keys())
+    key = list(keys_new - keys_old)[0]
+    current_obj = bpy.data.objects[key]
+    key_image = list(image_new-image_old)
+    if len(key_image) > 0:
+        print('>>> Loading image {}'.format(key_image[0]))
+        key = (key, key_image[0])
+    mat = list(mat_new - mat_old)[0]
+    return current_obj, key, mat
+
+def create_any_mesh(filename, vid, scale=(1, 1, 1), 
+    rotation=(0., 0., 0.), location=(0, 0, 0), shadow=True, **kwargs):
+    cylinder, name, matname = myimport(filename)
+    cylinder.scale = scale
+    cylinder.rotation_euler = rotation
+    cylinder.location = location
+    set_material_i(bpy.data.materials[matname], vid, **kwargs)
+    if not shadow:
+        bpy.data.materials[matname].shadow_method = 'NONE'
+        cylinder.cycles_visibility.shadow = False
+    return cylinder
+
+def create_cylinder(vid, **kwargs):
+    create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid, **kwargs)
+
+def create_plane(vid, radius=1, center=(0, 0), **kwargs):
+    scale = (radius*2, radius*2, 0.02)
+    # 注意：方向有点反
+    location = (center[0]+radius, center[1]-radius, 0)
+    create_any_mesh(join(assets_dir, 'cube.obj'), vid=vid,
+        scale=scale, location=location, **kwargs)
+
+def create_points(vid, radius=1, center=(0, 0, 0), basename='sphere.obj', **kwargs):
+    scale = (radius, radius, radius)
+    create_any_mesh(join(assets_dir, basename), vid=vid,
+        scale=scale, location=center, **kwargs)
+
+def create_sample_points(start, end, N_sample, radius=0.01, vid=0, **kwargs):
+    start, end = np.array(start), np.array(end)
+    dir = end - start
+    for i in range(N_sample+1): # create 3 layer
+        location = start + dir * i/N_sample
+        create_points(vid, center=location, radius=radius, **kwargs)
+
+def create_halfcylinder(vid, radius=1, height=2, **kwargs):
+    scale = (radius, radius, height/2)
+    location = (0, 0, height/2)
+    create_any_mesh(join(assets_dir, 'halfcylinder_100.obj'), vid=vid,
+        scale=scale, location=location, **kwargs)
+
+def create_arrow(vid, start, end, 
+    cylinder_radius=0.2, cone_radius=0.3,
+    cylinder_height=0.6, cone_height=0.4,):
+    scale = (cylinder_radius, cylinder_radius, cylinder_height)
+
+def look_at(obj_camera, point):
+    loc_camera = obj_camera.location
+    direction = Vector(point - loc_camera)
+    # point the cameras '-Z' and use its 'Y' as up
+    rot_quat = direction.to_track_quat('-Z', 'Y')
+    obj_camera.rotation_euler = rot_quat.to_euler()
+
+def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.), 
+    cone_radius=0.03, cone_height=0.1,
+    cylinder_radius=0.01):
+    start, end = np.array(start), np.array(end)
+    length = np.linalg.norm(end - start)
+    scale = (cylinder_radius, cylinder_radius, length/2)
+    dir = end - start
+    dir /= np.linalg.norm(dir)
+    location = start + (end - start) / 2
+    # disable shadow for ray
+    cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
+        scale=scale, location=location, shadow=False)
+    cone_scale = (cone_radius, cone_radius, cone_height)
+    cone_location = end + dir * cone_height * 0.01
+    cone = create_any_mesh(join(assets_dir, 'cone_100.obj'), vid,
+        scale=cone_scale, location=cone_location, shadow=False)
+    look_at(cylinder, end)
+    look_at(cone, end)
+    # set_material_rgb(bpy.data.materials[matname], [0, 0, 0])
+
+def _create_image(imgname):
+    filename = join(assets_dir, 'background.obj')
+    image_mesh, name, matname = myimport(filename)
+    key, key_image = name
+    bpy.data.images[key_image].filepath = imgname
+    return image_mesh
+
+def create_image_euler_translation(imgname, euler, translation,scale):
+    image_mesh = _create_image(imgname)
+    image_mesh.scale = scale
+    image_mesh.rotation_euler = euler
+    image_mesh.location = translation
+
+def create_image_RT(imgname, R=np.eye(3), T=np.zeros((3, 1))):
+    image_mesh = _create_image(imgname)
+    image_mesh.rotation_euler = Matrix(R.T).to_euler()
+    center = - R.T @ T
+    image_mesh.location = (center[0, 0], center[1, 0], center[2, 0])
+
+def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
+    location=None, rotation=None):
+    camera = bpy.data.objects['Camera']
+    # theta = np.pi / 8
+    if location is None:
+        theta = 0.
+        camera.location = (radius * np.sin(theta), -radius * np.cos(theta), height)
+    else:
+        camera.location = location
+    if rotation is None:
+        look_at(camera, Vector(center))
+    else:
+        camera.rotation_euler = Euler(rotation, 'XYZ')
+    print(camera.location)
+    print(camera.rotation_euler)
+    camera.data.lens = focal
+
+
+def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.) -> None:
+    output_node = node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+    principled_node = node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
+    checker_texture_node = node_tree.nodes.new(type='ShaderNodeTexChecker')
+
+    set_principled_node(principled_node=principled_node, alpha=alpha)
+    checker_texture_node.inputs['Scale'].default_value = size
+
+    node_tree.links.new(checker_texture_node.outputs['Color'], principled_node.inputs['Base Color'])
+    node_tree.links.new(principled_node.outputs['BSDF'], output_node.inputs['Surface'])
+
+    # node_tree.nodes["Checker Texture"].inputs[1].default_value = (1, 1, 1, 1)
+    # node_tree.nodes["Checker Texture"].inputs[2].default_value = (0.3, 0.8, 0.2, 1)
+
+    # arrange_nodes(node_tree)
+
+def create_plane_blender(location = (0.0, 0.0, 0.0),
+                 rotation = (0.0, 0.0, 0.0),
+                 size = 2.0,
+                 name = None) -> bpy.types.Object:
+    bpy.ops.mesh.primitive_plane_add(size=size, location=location, rotation=rotation)
+
+    current_object = bpy.context.object
+
+    if name is not None:
+        current_object.name = name
+
+    return current_object
+
+def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1):
+    plane = create_plane_blender(size=plane_size, name="Floor")
+    plane.location = translation
+    floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)
+    build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
+    plane.data.materials.append(floor_mat)
