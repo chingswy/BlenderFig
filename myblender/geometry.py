@@ -116,6 +116,13 @@ def _create_image(imgname):
     bpy.data.images[key_image].filepath = imgname
     return image_mesh
 
+def create_image_corners(imgname, corners):
+    image_mesh = _create_image(imgname)
+    vertices = image_mesh.data.vertices
+    assert len(vertices) == len(corners), len(vertices)
+    for i in range(corners.shape[0]):
+        vertices[i].co = corners[i]
+
 def create_image_euler_translation(imgname, euler, translation,scale):
     image_mesh = _create_image(imgname)
     image_mesh.scale = scale

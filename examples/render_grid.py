@@ -10,14 +10,14 @@
 import numpy as np
 import bpy
 import os
-from blender.geometry import (
+from myblender.geometry import (
     set_camera,
     build_plane,
     create_any_mesh
 )
-from blender.color import color_jet
+from myblender.color import color_jet
 
-from blender.setup import (
+from myblender.setup import (
     add_sunlight,
     get_parser,
     parse_args,
