@@ -37,3 +37,7 @@ ${blender} --background -noaudio --python examples/render_multiplane.py -- debug
 ![](output/render_multiplane.jpg)
 
 ## render skel
+
+```bash
+${blender} --background -noaudio --python examples/render_skel.py -- assets/thuman2-keypoints3d-000000.json --out output/render_skel.jpg --out_blend output/render_skel.blend
+```

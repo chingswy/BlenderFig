@@ -89,6 +89,17 @@ def look_at(obj_camera, point):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     obj_camera.rotation_euler = rot_quat.to_euler()
 
+def create_line(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.)):
+    start, end = np.array(start), np.array(end)
+    length = np.linalg.norm(end - start)
+    scale = (radius, radius, length/2)
+    dir = end - start
+    dir /= np.linalg.norm(dir)
+    location = start + (end - start) / 2
+    cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
+        scale=scale, location=location, shadow=True)
+    look_at(cylinder, end)
+
 def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.), 
     cone_radius=0.03, cone_height=0.1,
     cylinder_radius=0.01):
