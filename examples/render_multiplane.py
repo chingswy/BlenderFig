@@ -7,15 +7,15 @@
   @ FilePath: /EasyMocapPublic/scripts/blender/render_example.py
 '''
 # TODO: This scripts show how to use blender to render a cube
+from os.path import join
 import numpy as np
 import bpy
 from myblender.geometry import (
     set_camera,
-    build_plane,
     create_image_corners
 )
 from myblender.color import color_jet
-
+from myblender.imageio import imwrite
 from myblender.setup import (
     add_sunlight,
     get_parser,
@@ -24,43 +24,31 @@ from myblender.setup import (
     set_output_properties,
     setup,
 )
-from myblender.geometry import create_plane, create_points
-
-def imwrite(outname, rgb):
-    size = rgb.shape
-    image = bpy.data.images.new("MyImage", width=size[0], height=size[1])
-    # assign pixels
-    image.pixels = rgb.flatten()
-
-    # write image
-    image.filepath_raw = outname
-    image.file_format = 'JPEG'
-    image.save()
 
 if __name__ == '__main__':
     parser = get_parser()
     args = parse_args(parser)
 
     setup()
-    set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=30)
+    set_camera(location=(4, 0, 2.5), center=(0, 0, 0.), focal=20)
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0))
-    x_min = -1.
+    x_min = -2.
     y_min = -2.
     x_max = 2.
-    y_max = 1.
+    y_max = 2.
     xy = np.array([
         [x_min, y_min], 
         [x_max, y_min], 
         [x_min, y_max], 
         [x_max, y_max]
     ])
-    sample_step = 0.001
+    sample_step = 0.01
     center = np.array([
         [-0.3, -1.1, 0.9],
         [0.5, 0.1, 1.1]
     ])
     # from PIL import Image
-    zs = [0.5, 1., 1.5]
+    zs = [0., 1., 2.]
     for z in zs:
         corners = np.hstack([xy, np.ones_like(xy[:, :1])*z])
         x_ = np.linspace(x_min, x_max, num=int((x_max-x_min)/sample_step))
@@ -73,7 +61,7 @@ if __name__ == '__main__':
         affinity = np.exp(-distance**2/(2*0.5**2))
         affinity = (affinity * 255).astype(np.int)
         rgb = color_jet[affinity]
-        outname = 'debug_{}.jpg'.format(z)
+        outname = join('tmp', '{}.jpg'.format(z))
         imwrite(outname, rgb)
         create_image_corners(outname, corners)
     
@@ -92,3 +80,6 @@ if __name__ == '__main__':
         tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
         format='JPEG')
     
+    bpy.ops.render.render(write_still=True, animation=False)
+    if args.out_blend is not None:
+        bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

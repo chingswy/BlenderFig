@@ -31,9 +31,10 @@ if __name__ == '__main__':
     setup()
     set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=30)
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0))
-    create_plane(vid=0)
-    create_points(vid=1, center=(0,0,0.5), alpha=0.5)
-    create_points(vid=2, center=(0,1,0.5), alpha=1)
+
+    create_plane(vid=0, radius=2, center=(-3, 0))
+    create_points(vid=1, center=(0,-1, 1), alpha=0.5)
+    create_points(vid=2, center=(0, 1, 1), alpha=1)
 
     # setup render
     set_cycles_renderer(
@@ -49,4 +50,6 @@ if __name__ == '__main__':
         res_x=args.res_x, res_y=args.res_y, 
         tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
         format='JPEG')
-    
+    bpy.ops.render.render(write_still=True, animation=False)
+    if args.out_blend is not None:
+        bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

@@ -12,7 +12,6 @@ import bpy
 import os
 from myblender.geometry import (
     set_camera,
-    build_plane,
     create_any_mesh
 )
 from myblender.color import color_jet
@@ -25,7 +24,7 @@ from myblender.setup import (
     set_output_properties,
     setup,
 )
-from blender.geometry import create_plane, create_points
+from myblender.geometry import create_plane, create_points
 
 def create_grid(bounds, N=64, MIN_VIS_THRES=0.1):
     x = np.arange(N)
