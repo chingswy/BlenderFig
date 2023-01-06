@@ -30,6 +30,8 @@ def myimport(filename):
     image_new = set(bpy.data.images.keys())
     key = list(keys_new - keys_old)[0]
     current_obj = bpy.data.objects[key]
+    # set default rotation to 0.
+    current_obj.rotation_euler = (0., 0., 0.)
     key_image = list(image_new-image_old)
     if len(key_image) > 0:
         print('>>> Loading image {}'.format(key_image[0]))
