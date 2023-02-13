@@ -65,6 +65,7 @@ if __name__ == '__main__':
         grids = np.loadtxt(args.grid)
         print(grids.shape)
         grids, confs = grids[:, :3], grids[:, 3]
+        print(grids[0], grids[1])
         radius = np.linalg.norm(grids[0] - grids[1]) / 2
         plot_grids(grids, confs, radius=radius, res=4, MIN_THRES=-1, gamma=0.15)
         
