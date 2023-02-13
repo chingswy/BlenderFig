@@ -33,7 +33,8 @@ if __name__ == '__main__':
     args = parse_args(parser)
 
     setup()
-    set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=30)
+    # set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=30)
+    set_camera(location=(0, 0.5, -2), rotation=(-np.deg2rad(20), np.deg2rad(180), 0), focal=30)
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0))
 
     datas = read_skeleton(args.path)
@@ -41,20 +42,17 @@ if __name__ == '__main__':
         if data['type'] == 'skeleton':
             build_skel(data, data['skeltype'])
         elif data['type'] == 'image':
-            x_min, y_min, z_min = data['corners'][0]
-            x_max, y_max, z_max = data['corners'][1]
-            corners = np.array([
-                [x_min, y_min, z_min], 
-                [x_max, y_min, z_min], 
-                [x_min, y_max, z_min], 
-                [x_max, y_max, z_min]
-            ])
-            corners = np.array([
-                [x_min, y_min, z_min], 
-                [x_max, y_min, z_min], 
-                [x_max, y_max, z_min], 
-                [x_min, y_max, z_min]
-            ])
+            if False:
+                x_min, y_min, z_min = data['corners'][0]
+                x_max, y_max, z_max = data['corners'][1]
+                corners = np.array([
+                    [x_min, y_min, z_min], 
+                    [x_max, y_min, z_min], 
+                    [x_max, y_max, z_min], 
+                    [x_min, y_max, z_min]
+                ])
+            else:
+                corners = np.array(data['corners'])
             print(corners)
             imgname = join(os.path.dirname(args.path), os.path.basename(data['imgname']))
             # imgname = imgname.replace('heatmap_', 'heatmap_gt_')

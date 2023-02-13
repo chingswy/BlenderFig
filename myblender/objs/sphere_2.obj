@@ -1,0 +1,20 @@
+# Created by Open3D 
+# object name: sphere_2
+# number of vertices: 6
+# number of triangles: 8
+mtllib sphere_2.mtl
+usemtl sphere_2
+v 0 0 1 1 0 0
+v 0 0 -1 1 0 0
+v 1 0 6.12323e-17 1 0 0
+v 6.12323e-17 1 6.12323e-17 1 0 0
+v -1 1.22465e-16 6.12323e-17 1 0 0
+v -1.83697e-16 -1 6.12323e-17 1 0 0
+f 1 3 4
+f 2 4 3
+f 1 4 5
+f 2 5 4
+f 1 5 6
+f 2 6 5
+f 1 6 3
+f 2 3 6

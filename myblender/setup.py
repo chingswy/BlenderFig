@@ -24,12 +24,13 @@ def get_parser():
     parser.add_argument("--nf", type=int, help='frame', default=1)
     parser.add_argument("--nperson", type=int, default=6)
     parser.add_argument("--extra_mesh", type=str, default=[], nargs='+')
-    parser.add_argument('--out', type=str, default='output/',
+    parser.add_argument('--out', type=str, default=None,
         help='Output file or directory')
     parser.add_argument('--out_blend', type=str, default=None,
         help='Output file or directory')
     parser.add_argument('--res_x', type=int, default=1024)
     parser.add_argument('--res_y', type=int, default=1024)
+    parser.add_argument('--format', type=str, default='JPEG', choices=['JPEG', 'PNG'])
     
     parser.add_argument('--res', type=int, default=100,
         help='Output file or directory')
@@ -66,9 +67,9 @@ def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3
     sun_object.data.use_nodes = True
     sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = 4.0
 
-def setup():
+def setup(rgb=(1,1,1,1)):
     scene = bpy.context.scene
-    build_rgb_background(scene.world, rgb=(1, 1, 1, 1), strength=1.)
+    build_rgb_background(scene.world, rgb=rgb, strength=1.)
     clean_objects('Cube')
     clean_objects('Light')
 

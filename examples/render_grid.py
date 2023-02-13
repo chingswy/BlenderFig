@@ -24,7 +24,7 @@ from myblender.setup import (
     set_output_properties,
     setup,
 )
-from myblender.geometry import create_plane, create_points
+from myblender.grid import plot_grids
 
 def create_grid(bounds, N=64, MIN_VIS_THRES=0.1):
     x = np.arange(N)
@@ -41,31 +41,26 @@ def create_grid(bounds, N=64, MIN_VIS_THRES=0.1):
     print(gauss.shape, xyz.shape)
     return xyz, gauss
 
-def plot_grids(grids, confs, radius):
-    for grid, conf in zip(grids, confs):
-        conf_int = int(conf * 255)
-        create_points(vid=color_jet[conf_int], center=grid, radius=radius, alpha=conf,
-            basename='sphere_8.obj')
-
 if __name__ == '__main__':
     parser = get_parser()
+    parser.add_argument('--radius', type=float, default=0.01)
+    parser.add_argument('--sphere_res', type=int, default=2)
     args = parse_args(parser)
 
     setup()
     set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=50)
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0))
 
-    bounds = np.array([[-1., -1., 0.], [1., 1., 2.]])
-    N = 8
     if args.path == 'debug':
+        bounds = np.array([[-1., -1., 0.], [1., 1., 2.]])
+        N = 8
         grids, confs = create_grid(bounds, N=N)
         radius = ((bounds[1][0]-bounds[0][0])/N/4)
     else:
         grids = np.loadtxt(args.path)
         print(grids.shape)
         grids, confs = grids[:, :3], grids[:, 3]
-        radius = 0.02
-    plot_grids(grids, confs, radius=radius)
+    plot_grids(grids, confs, radius=args.radius, res=args.sphere_res)
     for pid, meshname in enumerate(args.extra_mesh):
         if not os.path.exists(meshname):
             continue
@@ -81,10 +76,11 @@ if __name__ == '__main__':
     )
 
     n_parallel = 1
-    set_output_properties(bpy.context.scene, output_file_path=args.out, 
-        res_x=args.res_x, res_y=args.res_y, 
-        tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
-        format='JPEG')
-    bpy.ops.render.render(write_still=True, animation=False)
+    if args.out is not None:
+        set_output_properties(bpy.context.scene, output_file_path=args.out, 
+            res_x=args.res_x, res_y=args.res_y, 
+            tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
+            format='JPEG')
+        bpy.ops.render.render(write_still=True, animation=False)
     if args.out_blend is not None:
         bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

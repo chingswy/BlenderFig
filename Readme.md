@@ -41,3 +41,10 @@ ${blender} --background -noaudio --python examples/render_multiplane.py -- debug
 ```bash
 ${blender} --background -noaudio --python examples/render_skel.py -- assets/thuman2-keypoints3d-000000.json --out output/render_skel.jpg --out_blend output/render_skel.blend
 ```
+
+## render skel gt and pred
+
+```bash
+${blender} -noaudio --python examples/render_skel_gt_pred.py -- assets/s04_Hug1_000085.jpg.json
+${blender} -noaudio --background --python examples/render_skel_gt_pred.py -- assets/field/s04_Hug\ 1_000070.jpg.json --no_pred --ground --grid assets/field/s04_Hug\ 1_000070_root.txt --out output/render_field.png --format PNG
+```

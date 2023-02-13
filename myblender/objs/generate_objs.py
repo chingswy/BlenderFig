@@ -71,4 +71,5 @@ if __name__ == '__main__':
     # make_halfcylinder()
     # make_cube()
     # make_cone()
-    make_sphere(res=8)
+    # make_sphere(res=8)
+    make_sphere(res=2)
