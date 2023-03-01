@@ -7,6 +7,8 @@
   @ FilePath: /EasyMocapPublic/scripts/blender/render_example.py
 '''
 # TODO: This scripts show how to use blender to render a skeleton
+import os
+from os.path import join
 import numpy as np
 import bpy
 from myblender.geometry import (
@@ -24,12 +26,18 @@ from myblender.setup import (
 )
 from myblender.skeleton import read_skeleton, build_skel
 
+def set_camera_circle(center, theta, phi, radius):
+    z = center[2] + radius * np.sin(np.deg2rad(phi))
+    x = center[0] + radius * np.cos(np.deg2rad(theta))
+    y = center[1] + radius * np.sin(np.deg2rad(theta))
+    set_camera(location=(x, y, z), center=center, focal=30)
+
 if __name__ == '__main__':
     parser = get_parser()
     parser.add_argument('--skel', type=str, default='body25')
-    parser.add_argument('--phi', type=float, default=30,
+    parser.add_argument('--phi', type=int, default=[45, 46, 1], nargs=3,
                         help='the angle of camera in the vertical direction')
-    parser.add_argument('--theta', type=float, default=0,
+    parser.add_argument('--theta', type=int, default=[0, 1, 1], nargs=3,
                         help='the angle of camera')
     
     args = parse_args(parser)
@@ -44,13 +52,7 @@ if __name__ == '__main__':
     build_plane(translation=(center[0], center[1], 0), plane_size=16)
     # 计算相机角度
     radius = 2
-    phi = args.phi
-    theta = args.theta
-    z = center[2] + radius * np.sin(np.deg2rad(phi))
-    x = center[0] + radius * np.cos(np.deg2rad(theta))
-    y = center[1] + radius * np.sin(np.deg2rad(theta))
 
-    set_camera(location=(x, y, z), center=center, focal=30)
     preds = np.array(skels['pred'])
     for pid, pred in enumerate(preds[:2]):
         print('[Vis] add skeleton {}'.format(pid))
@@ -73,10 +75,18 @@ if __name__ == '__main__':
             use_transparent_bg=use_transparent,
             use_denoising=args.denoising,
         )
-        set_output_properties(bpy.context.scene, output_file_path=args.out, 
-            res_x=args.res_x, res_y=args.res_y, 
-            tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
-            format=format)
-        bpy.ops.render.render(write_still=True, animation=False)
+        basename = os.path.basename(args.out).split('.')[0]
+        ext = os.path.basename(args.out).split('.')[-1]
+
+        os.makedirs(os.path.dirname(args.out), exist_ok=True)
+        for phi in range(*args.phi):
+            for theta in range(*args.theta):
+                set_camera_circle(center, theta, phi, radius)
+                outname = join(os.path.dirname(args.out), basename + '_{:03d}_{:03d}.{}'.format(phi, theta, ext))
+                set_output_properties(bpy.context.scene, output_file_path=outname, 
+                    res_x=args.res_x, res_y=args.res_y, 
+                    tile_x=args.res_x//n_parallel, tile_y=args.res_y, resolution_percentage=100,
+                    format=format)
+                bpy.ops.render.render(write_still=True, animation=False)
         # if args.out_blend is not None:
         #     bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)
