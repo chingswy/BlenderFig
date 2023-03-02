@@ -201,3 +201,30 @@ def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1):
     floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)
     build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
     plane.data.materials.append(floor_mat)
+
+def bound_from_keypoint(keypoint, padding=0.1, min_z=0):
+    v = keypoint[..., -1]
+    k3d_flat = keypoint[v>0.01]
+    lower = k3d_flat[:, :3].min(axis=0)
+    lower[2] = max(min_z, lower[2])
+    upper = k3d_flat[:, :3].max(axis=0)
+    center = (lower + upper ) / 2
+    scale = upper - lower
+    return center, scale, np.stack([lower, upper])
+
+def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
+    bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD')
+    bpy.ops.object.modifier_add(type='WIREFRAME')
+    obj = bpy.context.object
+    obj.modifiers["Wireframe"].thickness = 0.04
+    name = obj.name
+    
+    matname = "Material_{}".format(name)
+    mat = add_material(matname, use_nodes=True, make_node_tree_empty=False)
+    obj.data.materials.append(mat)
+
+    obj.rotation_euler = (0, 0, 0)
+    set_material_i(bpy.data.materials[matname], pid)
+    obj.scale = scale
+    obj.location = location
+    obj.cycles_visibility.shadow = False

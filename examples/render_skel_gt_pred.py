@@ -33,6 +33,8 @@ if __name__ == '__main__':
     parser.add_argument('--ground', action='store_true')
     parser.add_argument('--no_pred', action='store_true')
     parser.add_argument('--field', type=str, default=None)
+    parser.add_argument('--gamma', type=float, default=0.5)
+    parser.add_argument('--gamma_density', type=float, default=1)
     args = parse_args(parser)
 
     setup(rgb=(1,1,1,0))
@@ -44,12 +46,12 @@ if __name__ == '__main__':
     record = read_skeleton(args.path)
 
     gt = np.array(record['gt'])
-    pred = np.array(record['pred_by_gt'])
     offset = np.array(args.offset + [0.]).reshape(1, -1)
     for i in range(gt.shape[0]):
         gt_ = gt[i]
         add_skeleton(gt_, i, skeltype=args.skel)
     if not args.no_pred:
+        pred = np.array(record['pred_by_gt'])
         for i in range(pred.shape[0]):
             pred_ = pred[i]
             pred_ = pred_ + offset
@@ -67,7 +69,7 @@ if __name__ == '__main__':
         grids, confs = grids[:, :3], grids[:, 3]
         print(grids[0], grids[1])
         radius = np.linalg.norm(grids[0] - grids[1]) / 2
-        plot_grids(grids, confs, radius=radius, res=4, MIN_THRES=-1, gamma=0.15)
+        plot_grids(grids, confs, radius=radius, res=4, MIN_THRES=-1, gamma=args.gamma, gamma_density=args.gamma_density)
         
     # setup render
     set_cycles_renderer(

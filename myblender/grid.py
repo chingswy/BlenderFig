@@ -2,7 +2,7 @@ import numpy as np
 from .color import color_jet
 from .geometry import create_points
 
-def plot_grids(grids, confs, radius, res, MIN_THRES=0.15, gamma=0.5):
+def plot_grids(grids, confs, radius, res, MIN_THRES=0.15, gamma=0.5, gamma_density=0.5):
     print(confs.max(), confs.min())
     input()
     confs = np.clip(confs, -0.5, 1)
@@ -17,5 +17,5 @@ def plot_grids(grids, confs, radius, res, MIN_THRES=0.15, gamma=0.5):
         print('>>> Loading {}/{}'.format(i, len(grids)))
         conf_int = int(conf * 255)
         create_points(vid=color_jet[conf_int], center=grid, radius=radius, 
-            alpha=np.power(conf, 0.5),
+            alpha=np.power(conf, gamma_density),
             basename='sphere_{}.obj'.format(res), shadow=False)
