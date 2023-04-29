@@ -111,7 +111,10 @@ def set_cycles_renderer(scene: bpy.types.Scene,
         bpy.context.scene.cycles.device = "GPU"
 
         # Change the preference setting
-        bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA"
+        try:
+            bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA"
+        except:
+            print("No CUDA device found, using CPU instead.")
 
     # Call get_devices() to let Blender detects GPU device (if any)
     bpy.context.preferences.addons["cycles"].preferences.get_devices()
@@ -138,8 +141,9 @@ def set_output_properties(scene,
     scene.render.resolution_percentage = resolution_percentage
     scene.render.resolution_x = res_x
     scene.render.resolution_y = res_y
-    scene.render.tile_x = tile_x
-    scene.render.tile_y = tile_y
+    if hasattr(scene.render, 'tile_x'):
+        scene.render.tile_x = tile_x
+        scene.render.tile_y = tile_y
     # scene.render.use_antialiasing = True
     # scene.render.antialiasing_samples = '5'
 
