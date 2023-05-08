@@ -164,7 +164,7 @@ def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
     print(camera.location)
     print(camera.rotation_euler)
     camera.data.lens = focal
-
+    return camera
 
 def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.) -> None:
     output_node = node_tree.nodes.new(type='ShaderNodeOutputMaterial')

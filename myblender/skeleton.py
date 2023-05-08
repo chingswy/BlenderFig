@@ -67,12 +67,12 @@ CONFIG = {
 
 def add_skeleton(keypoints3d, pid, skeltype):
     for k3d in keypoints3d:
-        if k3d[3] < 0.01:
+        if len(k3d) == 4 and k3d[3] < 0.01:
             continue
         create_points(vid=pid, radius=0.025, center=k3d[:3])
     kintree = CONFIG[skeltype]
     for (i, j) in kintree:
-        if keypoints3d[i, 3] < 0.01 or keypoints3d[j, 3] < 0.01:
+        if keypoints3d.shape[1] == 4 and (keypoints3d[i, 3] < 0.01 or keypoints3d[j, 3] < 0.01):
             continue
         create_line(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
 
