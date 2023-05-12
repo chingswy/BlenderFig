@@ -227,4 +227,32 @@ def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
     set_material_i(bpy.data.materials[matname], pid)
     obj.scale = scale
     obj.location = location
-    obj.cycles_visibility.shadow = False
+    try:
+        obj.cycles_visibility.shadow = False
+    except:
+        print('Cannot set cycle')
+
+def load_humanmesh(filename, pid, translation=None, rotation=None, with_bbox=True):
+    assert filename.endswith('.obj'), filename
+    obj, name, matname = myimport(filename)
+    obj.rotation_euler = (0, 0, +0)
+    if rotation is not None:
+        obj.rotation_euler = (rotation[0], rotation[1], rotation[2])
+        # if with_bbox:
+        #     box = np.array(obj.bound_box)
+        #     box_min = np.min(box, axis=0)
+        #     box_max = np.max(box, axis=0)
+        #     box_center = (box_min + box_max) / 2
+        #     box_scale = (box_max - box_min) / 2
+        #     if translation is not None:
+        #         box_center += np.array(translation)
+        #     locations.append(np.array(box_center))
+        #     load_bbox(scale=box_scale, location=box_center, pid=pid)
+        # else:
+        #     locations.append(np.array(obj.location))
+    if translation is not None:
+        obj.location += Vector(translation)
+    bpy.ops.object.shade_smooth()
+    mat = bpy.data.materials[matname]
+    set_material_i(mat, pid)
+    return obj
