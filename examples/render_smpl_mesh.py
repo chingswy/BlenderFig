@@ -16,7 +16,8 @@ from myblender.geometry import (
 )
 
 from myblender.setup import (
-    add_sunlight,
+    setLight_sun,
+    setLight_ambient,
     get_parser,
     parse_args,
     set_cycles_renderer,
@@ -25,17 +26,36 @@ from myblender.setup import (
 )
 from myblender.geometry import create_plane, create_points
 
+class colorObj(object):
+    def __init__(self, RGBA, \
+    H = 0.5, S = 1.0, V = 1.0,\
+    B = 0.0, C = 0.0):
+        self.H = H # hue
+        self.S = S # saturation
+        self.V = V # value
+        self.RGBA = RGBA
+        self.B = B # birghtness
+        self.C = C # contrast
+
 if __name__ == '__main__':
 
     parser = get_parser()
     args = parse_args(parser)
 
     setup()
-    set_camera(location=(0, 2.5, 2.5), center=(0, 0, 1), focal=30)
-    add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0))
+    set_camera(location=(0, 2.5, 2.5), center=(0, 0, 1), focal=50)
+    lightAngle = [0, 0, 0]
+    strength = 2
+    shadowSoftness = 0.3
+    sun = setLight_sun(lightAngle, strength, shadowSoftness)
+    setLight_ambient(color=(0.1,0.1,0.1,1))
 
     build_plane(translation=(0, 0, 0), plane_size=5)
-    load_humanmesh(args.path, pid=1)
+
+    RGB = [	30/255, 144/255, 255/255]
+    RGBA = (RGB[0], RGB[1], RGB[2], 1)
+    meshColor = colorObj(RGBA, 0.5, 1.0, 1.0, 0.0, 2.0)
+    load_humanmesh(args.path, pid=1, meshColor=meshColor)
 
     # setup render
     set_cycles_renderer(
