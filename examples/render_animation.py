@@ -147,10 +147,9 @@ def animate_by_smpl(param, bones, frame):
     bones[root_name].keyframe_insert('location', frame=frame)
     bone_rotation = Rodrigues(np.array(param['Rh'][0]))
     bone_rotation = Matrix(bone_rotation).to_quaternion()   
-    # bones[root_name].rotation_quaternion = bone_rotation
+    bones[root_name].rotation_quaternion = bone_rotation
     bones[root_name].keyframe_insert('rotation_quaternion', frame=frame)
     for i in range(1, len(MAP_SMPL_XBOT)):
-        break
         rvec = np.array(param['poses'][0][3*i-3:3*i])
         if args.retarget:
             bone_name = MAP_SMPL_XBOT[i]
@@ -176,10 +175,9 @@ def run():
     bones = character.pose.bones
     animate_by_smpl(params[0], bones, 0)
 
-def load_smpl_from_dir(dirname):
+def load_smpl_from_dir(dirname, target_model, pid=0):
     filenames = sorted(glob(os.path.join(dirname, '*.json')))
     bpy.context.scene.frame_end = len(filenames)
-    target_model = 'Armature'
     character = bpy.data.objects[target_model]
     bones = character.pose.bones
     for frame, filename in enumerate(filenames):
@@ -187,8 +185,8 @@ def load_smpl_from_dir(dirname):
         # TODO: 只兼容一个人
         if isinstance(params, dict):
             params = params['annots']
-        animate_by_smpl(params[0], bones, frame)
-
+        pid = min(pid, len(params))
+        animate_by_smpl(params[pid], bones, frame)
 
 def get_calibration_matrix_K_from_blender(mode='simple'):
 
@@ -295,7 +293,7 @@ if __name__ == "__main__":
     set_extrinsic(R, T, bpy.data.objects['Camera'])
 
 
-    for target in args.target:
+    for pid, target in enumerate(args.target):
         if 'SMPL_maya' in target:
             scale = 100.
             bpy.ops.import_scene.fbx(
@@ -320,29 +318,17 @@ if __name__ == "__main__":
         target_model = obj_names[0]
 
         character = bpy.data.objects[target_model]
-        character.location = Vector((0, -1, 2))
+        character.location = Vector((0, -1, 0))
         armature = bpy.data.armatures[target_model]
         armature.animation_data_clear()
 
         bones = character.pose.bones
         bones_name = list(bones.keys())
         print('Bones: ', bones_name)
-        scene = bpy.context.scene
-        insert_interval = 1
-        load_smpl_from_dir(args.path)
+        load_smpl_from_dir(args.path, target_model, pid=pid)
     
     nFrames = bpy.context.scene.frame_end
     camera = bpy.data.objects['Camera']
-    # camera.animation_data_clear()
-    # camera.keyframe_insert(
-    #     "location", frame=0
-    # )
-    # look_at(camera, Vector((0, 0, 5)))
-    # camera.location = camera.location + Vector((5, 0, 0))
-    # camera.keyframe_insert(
-    #     "location", frame=nFrames-1
-    # )
-    # look_at(camera, Vector((0, 0, 5)))
     
     set_cycles_renderer(
         bpy.context.scene,
