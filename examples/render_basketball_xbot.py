@@ -132,7 +132,7 @@ if __name__ == "__main__":
             character = bpy.data.objects[models[pid]]
             bones = character.pose.bones
             animate_by_smpl(param, bones, frame, offset=[0,0,-0.2])
-        break
+
     nFrames = bpy.context.scene.frame_end
     camera = bpy.data.objects['Camera']
     
