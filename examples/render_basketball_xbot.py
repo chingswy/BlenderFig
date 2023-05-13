@@ -96,8 +96,9 @@ if __name__ == "__main__":
         ## e.g., ['Armature', 'Beta_Joints', 'Beta_Surface'] for `xbot.fbx`
         # 设置joints和surface的scale
         target_model = obj_names[0]
-        matname = list(bpy.data.objects[obj_names[2]].material_slots.keys())[0]
-        bpy.data.materials[matname].node_tree.nodes["Principled BSDF"].inputs[0].default_value = color_table[pid]
+        for obj_name in obj_names[1:]:
+            matname = list(bpy.data.objects[obj_name].material_slots.keys())[0]
+            bpy.data.materials[matname].node_tree.nodes["Principled BSDF"].inputs[0].default_value = color_table[pid]
         character = bpy.data.objects[target_model]
         character.location = Vector((0, -0.5, 0))
         armature = bpy.data.armatures[target_model]
