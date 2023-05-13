@@ -185,7 +185,7 @@ def load_smpl_from_dir(dirname, target_model, pid=0):
         # TODO: 只兼容一个人
         if isinstance(params, dict):
             params = params['annots']
-        pid = min(pid, len(params))
+        pid = min(pid, len(params)-1)
         animate_by_smpl(params[pid], bones, frame)
 
 def get_calibration_matrix_K_from_blender(mode='simple'):
