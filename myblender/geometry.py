@@ -58,12 +58,12 @@ def create_plane(vid, radius=1, center=(0, 0), **kwargs):
     scale = (radius*2, radius*2, 0.02)
     # 注意：方向有点反
     location = (center[0]+radius, center[1]-radius, 0)
-    create_any_mesh(join(assets_dir, 'cube.obj'), vid=vid,
+    return create_any_mesh(join(assets_dir, 'cube.obj'), vid=vid,
         scale=scale, location=location, **kwargs)
 
 def create_points(vid, radius=1, center=(0, 0, 0), basename='sphere.obj', **kwargs):
     scale = (radius, radius, radius)
-    create_any_mesh(join(assets_dir, basename), vid=vid,
+    return create_any_mesh(join(assets_dir, basename), vid=vid,
         scale=scale, location=center, **kwargs)
 
 def create_sample_points(start, end, N_sample, radius=0.01, vid=0, **kwargs):
@@ -91,7 +91,7 @@ def look_at(obj_camera, point):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     obj_camera.rotation_euler = rot_quat.to_euler()
 
-def create_line(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.)):
+def create_line(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs):
     start, end = np.array(start), np.array(end)
     length = np.linalg.norm(end - start)
     scale = (radius, radius, length/2)
@@ -99,8 +99,21 @@ def create_line(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.)):
     dir /= np.linalg.norm(dir)
     location = start + (end - start) / 2
     cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
-        scale=scale, location=location, shadow=True)
+        scale=scale, location=location, shadow=True, **kwargs)
     look_at(cylinder, end)
+
+def create_ellipsold(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs):
+    start, end = np.array(start), np.array(end)
+    length = np.linalg.norm(end - start)
+    radius = radius * length / 0.2
+    scale = (radius, radius, length/2)
+    dir = end - start
+    dir /= np.linalg.norm(dir)
+    location = start + (end - start) / 2
+    cylinder = create_any_mesh(join(assets_dir, 'sphere.obj'), vid,
+        scale=scale, location=location, shadow=True, **kwargs)
+    look_at(cylinder, end)
+    return cylinder
 
 def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.), 
     cone_radius=0.03, cone_height=0.1,

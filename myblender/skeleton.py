@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from .geometry import create_points, create_cylinder, create_line
+from .geometry import create_points, create_cylinder, create_line, create_ellipsold, look_at
 
 def read_skeleton(skelname):
     with open(skelname, 'r') as f:
@@ -65,16 +65,47 @@ CONFIG = {
         [13, 14]]
 }
 
-def add_skeleton(keypoints3d, pid, skeltype):
+def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None):
+    points = []
     for k3d in keypoints3d:
         if len(k3d) == 4 and k3d[3] < 0.01:
+            points.append(None)
             continue
-        create_points(vid=pid, radius=0.025, center=k3d[:3])
+        obj = create_points(vid=pid, radius=0.025, center=k3d[:3])
+        points.append(obj)
+    limbs = []
     kintree = CONFIG[skeltype]
     for (i, j) in kintree:
         if keypoints3d.shape[1] == 4 and (keypoints3d[i, 3] < 0.01 or keypoints3d[j, 3] < 0.01):
+            limbs.append(None)
             continue
-        create_line(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
+        if mode == 'line':
+            obj = create_line(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
+        else:
+            obj = create_ellipsold(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
+        limbs.append(obj)
+    return points, limbs
+
+def update_skeleton(keypoints3d, skeltype, points, limbs, frame):
+    # TODO: 修正一下骨长；以第一帧的骨长为准
+
+    for i in range(keypoints3d.shape[0]):
+        points[i].location = keypoints3d[i, :3]
+        points[i].keyframe_insert('location', frame=frame)
+    kintree = CONFIG[skeltype]
+    for ilimb, (i, j) in enumerate(kintree):
+        obj = limbs[ilimb]
+        start, end = keypoints3d[i, :3], keypoints3d[j, :3]
+        length = np.linalg.norm(end - start)
+        obj.location = (keypoints3d[i, :3] + keypoints3d[j, :3]) / 2
+        radius = obj.scale[0]
+        scale = (radius, radius, length/2)
+        obj.scale = scale
+        obj.keyframe_insert('scale', frame=frame)
+        look_at(obj, keypoints3d[j, :3])
+        obj.keyframe_insert('location', frame=frame)
+        obj.keyframe_insert('rotation_euler', frame=frame)
+
 
 def build_skel(skel, skeltype):
     keypoints3d = np.array(skel['keypoints3d'])
