@@ -57,7 +57,7 @@ def clean_objects(name='Cube', version = '2.83') -> None:
         bpy.data.objects[name].select = True
     bpy.ops.object.delete(use_global=False)
 
-def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14)):
+def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14), strength=4.):
     bpy.ops.object.light_add(type='SUN', location=location, rotation=rotation)
 
     if name is not None:
@@ -65,7 +65,7 @@ def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3
 
     sun_object = bpy.context.object
     sun_object.data.use_nodes = True
-    sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = 4.0
+    sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
 
 def setLight_sun(rotation_euler, strength, shadow_soft_size = 0.05):
 	x = rotation_euler[0] * 1.0 / 180.0 * np.pi 
