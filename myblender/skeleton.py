@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import bpy
 from .geometry import create_points, create_cylinder, create_line, create_ellipsold, look_at
 
 def read_skeleton(skelname):
@@ -72,6 +73,7 @@ def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None
             points.append(None)
             continue
         obj = create_points(vid=pid, radius=0.025, center=k3d[:3])
+        bpy.ops.object.shade_smooth()
         points.append(obj)
     limbs = []
     kintree = CONFIG[skeltype]
@@ -83,6 +85,8 @@ def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None
             obj = create_line(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
         else:
             obj = create_ellipsold(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
+        bpy.ops.object.shade_smooth()
+        
         limbs.append(obj)
     return points, limbs
 
