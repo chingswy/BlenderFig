@@ -64,14 +64,28 @@ CONFIG = {
     },
     'pair32_pose32':{
         'cams': ['40'],
+        'keyframe': [40],
         'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/datasets/HI4D_easymocap/pair32_pose32',
         'res': [940, 1280],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
         'add_ground': True,
         'add_ground': True,
         'color_table': [
-            (0.1, 0.1, 0.1, 1.),
-            (1., 1., 1., 1.),
+            (8/255, 76/255, 97/255, 1.), # blue
+            (219/255, 58/255, 52/255, 1.), # red
+        ]
+    },
+    'demo558':{
+        'cams': ['09'],
+        'keyframe': [310],
+        'camera_root': '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance',
+        'res': [1024, 1024],
+        'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
+        'add_ground': True,
+        'add_ground': True,
+        'color_table': [
+            (8/255, 76/255, 97/255, 1.), # blue
+            (219/255, 58/255, 52/255, 1.), # red
         ]
     }
 }
@@ -107,8 +121,7 @@ if __name__ == '__main__':
     parser.add_argument('--grid', type=str, default=None)
     parser.add_argument('--offset', type=float, default=[0., 0., 0.], nargs=3)
     parser.add_argument('--ground', action='store_true')
-    parser.add_argument('--no_gt', action='store_true')
-    parser.add_argument('--no_pred', action='store_true')
+    parser.add_argument('--animation', action='store_true')
     parser.add_argument('--mode', type=str, default=None)
     args = parse_args(parser)
 
@@ -156,6 +169,11 @@ if __name__ == '__main__':
                 res_x=res_x, res_y=res_y, 
                 tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
                 format=args.format)
-            bpy.ops.render.render(write_still=True, animation=True)
+            if args.animation:
+                bpy.ops.render.render(write_still=True, animation=True)
+            else:
+                for frame in config['keyframe']:
+                    bpy.context.scene.frame_set(frame)
+                    bpy.ops.render.render(write_still=True)
     # if args.out_blend is not None:
     #     bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)
