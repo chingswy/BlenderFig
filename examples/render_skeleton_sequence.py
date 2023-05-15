@@ -61,6 +61,18 @@ CONFIG = {
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
         ]
+    },
+    'pair32_pose32':{
+        'cams': ['40'],
+        'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/datasets/HI4D_easymocap/pair32_pose32',
+        'res': [940, 1280],
+        'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
+        'add_ground': True,
+        'add_ground': True,
+        'color_table': [
+            (0.1, 0.1, 0.1, 1.),
+            (1., 1., 1., 1.),
+        ]
     }
 }
 
