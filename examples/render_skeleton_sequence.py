@@ -14,7 +14,8 @@ from myblender.camera_file import read_camera
 import bpy
 from myblender.geometry import (
     set_camera,
-    build_plane
+    build_plane,
+    create_plane_blender
 )
 from myblender.camera import set_extrinsic, set_intrinsic
 from myblender.setup import (
@@ -26,7 +27,7 @@ from myblender.setup import (
     setup,
 )
 from myblender.skeleton import read_skeleton, add_skeleton, update_skeleton
-
+from myblender.material import setMat_plastic, colorObj
 
 color_table = [
     (94/255, 124/255, 226/255), # 青色
@@ -50,15 +51,20 @@ for i, color in enumerate(color_table):
 
 CONFIG = {
     'pair10_dance10': {
-        'cams': ['52', '64'],
+        # 'cams': ['52', '64'],
+        'cams': ['4'],
         'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/datasets/HI4D_easymocap/pair10_dance10',
         'res': [940, 1280],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/4, 0], 'strength': 4.0},
         'add_ground': True,
+        'color_table': [
+            (8/255, 76/255, 97/255, 1.), # blue
+            (219/255, 58/255, 52/255, 1.), # red
+        ]
     }
 }
 
-def load_skeletons_from_dir(path, skeltype):
+def load_skeletons_from_dir(path, skeltype, color_table):
     filenames = sorted(os.listdir(path))
     bpy.context.scene.frame_end = len(filenames) - 1
     caches = {}
@@ -96,16 +102,24 @@ if __name__ == '__main__':
 
     setup(rgb=(1,1,1,0))
     camera = bpy.data.objects['Camera']
+    bpy.context.scene.render.engine = 'CYCLES'
 
     if args.mode not in CONFIG.keys():
         raise NotImplementedError
         exit()
     config = CONFIG[args.mode]
     if config['add_ground']:
-        build_plane(translation=(0, 0, 0), plane_size=5)
+        size = 3
+        build_plane(translation=(0, 0, 0), plane_size=size*2)
+        for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
+            [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
+            obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=False)
+            setMat_plastic(obj, colorObj([1, 1, 1, 1]), metallic=0.3, specular=0.2)
     if 'light' in config.keys():
         add_sunlight(name='Light', **config['light'])
-    load_skeletons_from_dir(args.path, args.skel)
+    load_skeletons_from_dir(args.path, args.skel, config.get('color_table', color_table))
+    if not os.path.exists(config['camera_root']):
+        config['camera_root'] = config['camera_root'].replace('/Users/shuaiqing', '')
     cameras = read_camera(join(config['camera_root'], 'intri.yml'), join(config['camera_root'], 'extri.yml'))
     for cam in config['cams']:
         K = cameras[cam]['K']

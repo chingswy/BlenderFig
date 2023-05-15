@@ -153,17 +153,18 @@ class colorObj(object):
         self.B = B # birghtness
         self.C = C # contrast
 
-def setMat_plastic(mesh, meshColor, AOStrength = 0.0):
+def setMat_plastic(mesh, meshColor, AOStrength = 0.0, 
+                   roughness=0.1, metallic=0.2, specular=0.6, **kwargs):
     mat = bpy.data.materials.new('MeshMaterial')
     mesh.data.materials.append(mat)
     mesh.active_material = mat
     mat.use_nodes = True
     tree = mat.node_tree
     # set principled BSDF
-    tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = 0.3
-    tree.nodes["Principled BSDF"].inputs['Metallic'].default_value = 0.0
+    tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = roughness
+    tree.nodes["Principled BSDF"].inputs['Metallic'].default_value = metallic
     tree.nodes["Principled BSDF"].inputs['Sheen Tint'].default_value = 0
-    tree.nodes["Principled BSDF"].inputs['Specular'].default_value = 0.5
+    tree.nodes["Principled BSDF"].inputs['Specular'].default_value = specular
     tree.nodes["Principled BSDF"].inputs['IOR'].default_value = 1.45
     tree.nodes["Principled BSDF"].inputs['Transmission'].default_value = 0
     tree.nodes["Principled BSDF"].inputs['Clearcoat Roughness'].default_value = 0

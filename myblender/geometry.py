@@ -199,14 +199,17 @@ def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha:
 def create_plane_blender(location = (0.0, 0.0, 0.0),
                  rotation = (0.0, 0.0, 0.0),
                  size = 2.0,
-                 name = None) -> bpy.types.Object:
+                 name = None,
+                 shadow=True) -> bpy.types.Object:
     bpy.ops.mesh.primitive_plane_add(size=size, location=location, rotation=rotation)
 
     current_object = bpy.context.object
 
     if name is not None:
         current_object.name = name
-
+    if not shadow:
+        current_object.visible_shadow = False
+        # current_object.cycles_visibility.shadow = False
     return current_object
 
 def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1):
