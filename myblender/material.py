@@ -200,12 +200,12 @@ def setMat_plastic(mesh, meshColor, AOStrength = 0.0,
     tree.links.new(tree.nodes["Gamma"].outputs['Color'], MIXRGB.inputs['Color2'])
     tree.links.new(MIXRGB.outputs['Color'], tree.nodes['Principled BSDF'].inputs['Base Color'])
 
-def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, **kwargs):
+def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plastic=True, **kwargs):
     if isinstance(pid, int):
         color = get_rgb(pid)
     else:
         color = pid
-    if False:
+    if not use_plastic:
         build_pbr_nodes(mat.node_tree, base_color=color, 
             metallic=metallic, specular=specular, roughness=roughness, **kwargs)
     else:

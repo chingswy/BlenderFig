@@ -15,7 +15,8 @@ import bpy
 from myblender.geometry import (
     set_camera,
     build_plane,
-    create_plane_blender
+    create_plane_blender,
+    create_bbox3d
 )
 from myblender.camera import set_extrinsic, set_intrinsic
 from myblender.setup import (
@@ -50,35 +51,9 @@ for i, color in enumerate(color_table):
     color_table[i] = (*color_table[i], 1.0)
 
 CONFIG = {
-    'pair10_dance10': {
-        # 'cams': ['52', '64'],
-        'cams': ['4'],
-        'keyframe': [100],
-        'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/datasets/HI4D_easymocap/pair10_dance10',
-        'res': [940, 1280],
-        'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/4, 0], 'strength': 4.0},
-        'add_ground': True,
-        'color_table': [
-            (8/255, 76/255, 97/255, 1.), # blue
-            (219/255, 58/255, 52/255, 1.), # red
-        ]
-    },
-    'pair32_pose32':{
-        'cams': ['40'],
-        'keyframe': [40],
-        'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/datasets/HI4D_easymocap/pair32_pose32',
-        'res': [940, 1280],
-        'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
-        'add_ground': True,
-        'add_ground': True,
-        'color_table': [
-            (8/255, 76/255, 97/255, 1.), # blue
-            (219/255, 58/255, 52/255, 1.), # red
-        ]
-    },
     'demo558':{
-        'cams': ['09'],
-        'keyframe': [310],
+        'cams': ['07'],
+        'keyframe': [304],
         'camera_root': '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance',
         'res': [1024, 1024],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
@@ -88,48 +63,24 @@ CONFIG = {
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
         ]
-    },
-    'green1':{
-        'cams': ['19502328'],
-        'keyframe': [44],
-        'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/extern/green-baseketball-seq/green-baseketball+000300+000450',
-        'res': [2448, 2048],
-        'light': [
-            {'location': (2., 5., 5.), 'rotation': (-np.pi/4, 0, 0), 'strength': 1.},
-            {'location': (2., -5., 5.), 'rotation': (np.pi/4, 0, 0), 'strength': 1.}],
-        'add_ground': {
-            'filepath': 'assets/Basketball_15x28.fbx',
-            'name': 'Pole_basketball 15x28',
-            'location': (14, 0, 0)
-        },
-        'color_table': [color_table[i] for i in [2, 2, 0, 0, 0, 0, 3, 1, 4, 0, 0]]
-    },
+    }
 }
 
 def load_skeletons_from_dir(path, skeltype, color_table):
-    filenames = sorted(os.listdir(path))
-    bpy.context.scene.frame_end = len(filenames) - 1
-    caches = {}
-    for frame, filename in enumerate(filenames):
-        print('Loading frame', frame)
-        bpy.context.scene.frame_set(frame)
-        record = read_skeleton(join(args.path, filename))
-        pred = np.array(record['pred'])
-        if 'pids' in record.keys():
-            pids = record['pids']
-        else:
-            pids = [i for i in range(pred.shape[0])]
-        for i in range(pred.shape[0]):
-            pid = pids[i]
-            if pid >= len(color_table):
-                continue
-            pred_ = pred[i]
-            if pid not in caches:
-                if frame > 1:continue
-                points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold')
-                caches[pids[i]] = (points, limbs)
-            points, limbs = caches[pid]
-            update_skeleton(pred_, skeltype, points, limbs, frame)
+    filename = join(path, '{:06d}.jpg.json'.format(304))
+    record = read_skeleton(join(filename))
+    pred = np.array(record['pred'])
+    if 'pids' in record.keys():
+        pids = record['pids']
+    else:
+        pids = [i for i in range(pred.shape[0])]
+    for i in range(pred.shape[0]):
+        pid = pids[i]
+        if pid >= len(color_table):
+            continue
+        pred_ = pred[i]
+        points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold')
+        create_bbox3d(scale=[0.5, 0.5, 1], location=pred_[2, :3], pid=color_table[i])
 
 if __name__ == '__main__':
     parser = get_parser()
@@ -151,7 +102,7 @@ if __name__ == '__main__':
     config = CONFIG[args.mode]
     if config['add_ground'] == True:
         size = 3
-        build_plane(translation=(0, 0, 0), plane_size=size*2)
+        # build_plane(translation=(0, 0, 0), plane_size=size*2)
         for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
             [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
             obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=False)
@@ -175,8 +126,9 @@ if __name__ == '__main__':
         K = cameras[cam]['K']
         R = cameras[cam]['R']
         T = cameras[cam]['T']
-        set_extrinsic(R, T, camera)
+        # set_camera(location=[-3, 0.25, 0.7], rotation=[np.pi/2, 0., -np.pi/2])
         res_x, res_y = config['res']
+        set_extrinsic(R, T, camera)
         set_intrinsic(K, camera, res_x, res_y)
         # setup render
         set_cycles_renderer(
@@ -202,5 +154,6 @@ if __name__ == '__main__':
                 for frame in config['keyframe']:
                     bpy.context.scene.frame_set(frame)
                     bpy.ops.render.render(write_still=True)
+        break
     # if args.out_blend is not None:
     #     bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

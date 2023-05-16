@@ -241,9 +241,10 @@ def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
     obj.data.materials.append(mat)
 
     obj.rotation_euler = (0, 0, 0)
-    set_material_i(bpy.data.materials[matname], pid)
+    set_material_i(bpy.data.materials[matname], pid, use_plastic=False)
     obj.scale = scale
     obj.location = location
+    obj.visible_shadow = False
     try:
         obj.cycles_visibility.shadow = False
     except:
