@@ -8,7 +8,7 @@
 '''
 import bpy
 
-hex2rgb = lambda x:list(map(lambda v:int('0x'+v, 16), [x[:2], x[2:4], x[4:]]))
+hex2rgb = lambda x:list(map(lambda v:int('0x'+v, 16)/255., [x[:2], x[2:4], x[4:]]))
 
 colors_rgb = [
     (94/255, 124/255, 226/255), # 青色
@@ -65,8 +65,10 @@ colors_table = {
 }
 
 def get_rgb(pid):
-    if isinstance(pid, str):
+    if isinstance(pid, str) and pid in colors_table:
         col = colors_table[pid]
+    elif isinstance(pid, str):
+        col = hex2rgb(pid)
     else:
         col = colors_rgb[pid]
     col = list(col) + [1]
@@ -204,7 +206,7 @@ def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plas
     if isinstance(pid, int):
         color = get_rgb(pid)
     else:
-        color = pid
+        color = get_rgb(pid)
     if not use_plastic:
         build_pbr_nodes(mat.node_tree, base_color=color, 
             metallic=metallic, specular=specular, roughness=roughness, **kwargs)

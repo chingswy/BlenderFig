@@ -7,6 +7,7 @@
   @ FilePath: /EasyMocapPublic/easymocap/blender/geometry.py
 '''
 import bpy
+import bmesh
 import os
 from os.path import join
 from .material import get_rgb, set_material_i, set_principled_node, add_material, setMat_plastic
@@ -218,6 +219,7 @@ def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1):
     floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)
     build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
     plane.data.materials.append(floor_mat)
+    return plane
 
 def bound_from_keypoint(keypoint, padding=0.1, min_z=0):
     v = keypoint[..., -1]
@@ -250,6 +252,36 @@ def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
     except:
         print('Cannot set cycle')
 
+def add_material_to_blender_primitive(obj, pid):
+    name = obj.name
+    matname = "Material_{}".format(name)
+    mat = add_material(matname, use_nodes=True, make_node_tree_empty=False)
+    obj.data.materials.append(mat)
+
+    set_material_i(bpy.data.materials[matname], pid, use_plastic=False)
+
+def create_camera_blender(R, T, scale=0.1, pid=0):
+    bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD')
+    obj = bpy.context.object
+    obj.scale = (scale, scale, scale)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    for i in [0, 2, 4, 6]:
+        bm.verts[i].select_set(True)
+    bmesh.update_edit_mesh(obj.data)
+    bpy.ops.mesh.merge(type='CENTER')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    bpy.ops.object.modifier_add(type='WIREFRAME')
+    obj.modifiers["Wireframe"].thickness = 0.1
+    add_material_to_blender_primitive(obj, pid)
+    center = - R.T @ T
+    obj.location = center.T[0]
+    obj.rotation_euler = Matrix(R.T).to_euler()
+    obj.visible_shadow = False
 
 def load_humanmesh(filename, pid, meshColor=None, translation=None, rotation=None, with_bbox=True):
     assert filename.endswith('.obj'), filename
