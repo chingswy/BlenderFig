@@ -107,7 +107,7 @@ CONFIG = {
     'chi3d':{
         'res': [3840, 540],
         'light': {'location': [0, 0, 5], 'rotation': [0., np.pi/4, 0], 'strength': 4.0},
-        'add_ground': False,
+        'add_ground': True,
         'color_table': [
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
@@ -228,20 +228,18 @@ if __name__ == '__main__':
         bpy.context.scene.render.engine = 'BLENDER_EEVEE'
 
 
-        # n_parallel = 1
-        # # if not args.animation:
-        # #     bpy.context.scene.frame_set(config['keyframe'][0])
-        # if args.out is not None and not args.debug:
-        #     outdir = join(args.out, cam + '_')
-        #     set_output_properties(bpy.context.scene, output_file_path=outdir, 
-        #         res_x=res_x, res_y=res_y, 
-        #         tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
-        #         format=args.format)
-        #     # if args.animation:
-        #     #     bpy.ops.render.render(write_still=True, animation=True)
-        #     # else:
-        #     #     for frame in config['keyframe']:
-        #     #         bpy.context.scene.frame_set(frame)
-        #     bpy.ops.render.render(write_still=True)
+    n_parallel = 1
+    if args.out is not None and not args.debug:
+        outdir = join(args.out, 'output')
+        set_output_properties(bpy.context.scene, output_file_path=outdir, 
+            res_x=res_x, res_y=res_y, 
+            tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
+            format=args.format)
+        # if args.animation:
+        #     bpy.ops.render.render(write_still=True, animation=True)
+        # else:
+        #     for frame in config['keyframe']:
+        #         bpy.context.scene.frame_set(frame)
+        bpy.ops.render.render(write_still=True)
     if args.out_blend is not None:
         bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)
