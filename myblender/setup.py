@@ -37,6 +37,7 @@ def get_parser():
     parser.add_argument('--num_samples', type=int, default=128,
         help='Output file or directory')
     parser.add_argument('--denoising', action='store_true')
+    parser.add_argument('--nocycle', action='store_true')
     parser.add_argument('--debug', action='store_true')
     return parser
 
@@ -87,6 +88,7 @@ def setLight_ambient(color = (0,0,0,1)):
  
 
 def setup(rgb=(1,1,1,1)):
+    np.random.seed(666)
     scene = bpy.context.scene
     build_rgb_background(scene.world, rgb=rgb, strength=1.)
     clean_objects('Cube')

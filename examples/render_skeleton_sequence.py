@@ -82,8 +82,7 @@ CONFIG = {
         'camera_root': '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance',
         'res': [1024, 1024],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
-        'add_ground': True,
-        'add_ground': True,
+        'add_ground': False,
         'color_table': [
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
@@ -106,6 +105,9 @@ CONFIG = {
     },
 }
 
+CONFIG['pair12_hug12'] = CONFIG['pair10_dance10']
+CONFIG['demo511'] = CONFIG['demo558']
+
 def load_skeletons_from_dir(path, skeltype, color_table):
     filenames = sorted(os.listdir(path))
     bpy.context.scene.frame_end = len(filenames) - 1
@@ -115,6 +117,8 @@ def load_skeletons_from_dir(path, skeltype, color_table):
         bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(args.path, filename))
         pred = np.array(record['pred'])
+        if pred.shape[-1] == 4:
+            pred[..., -1] = 1
         if 'pids' in record.keys():
             pids = record['pids']
         else:
@@ -126,7 +130,7 @@ def load_skeletons_from_dir(path, skeltype, color_table):
             pred_ = pred[i]
             if pid not in caches:
                 if frame > 1:continue
-                points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold')
+                points, limbs = add_skeleton(pred_, pid=list(color_table[i]), skeltype=skeltype, mode='ellipsold')
                 caches[pids[i]] = (points, limbs)
             points, limbs = caches[pid]
             update_skeleton(pred_, skeltype, points, limbs, frame)
@@ -179,13 +183,17 @@ if __name__ == '__main__':
         res_x, res_y = config['res']
         set_intrinsic(K, camera, res_x, res_y)
         # setup render
-        set_cycles_renderer(
-            bpy.context.scene,
-            bpy.data.objects["Camera"],
-            num_samples=args.num_samples,
-            use_transparent_bg=False,
-            use_denoising=args.denoising,
-        )
+        if not args.nocycle:
+            set_cycles_renderer(
+                bpy.context.scene,
+                bpy.data.objects["Camera"],
+                num_samples=args.num_samples,
+                use_transparent_bg=False,
+                use_denoising=args.denoising,
+            )
+        else:
+            bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+
 
         n_parallel = 1
         if not args.animation:

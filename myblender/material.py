@@ -69,6 +69,8 @@ def get_rgb(pid):
         col = colors_table[pid]
     elif isinstance(pid, str):
         col = hex2rgb(pid)
+    elif isinstance(pid, list) or isinstance(pid, tuple):
+        col = pid[:3]
     else:
         col = colors_rgb[pid]
     col = list(col) + [1]
@@ -155,7 +157,7 @@ class colorObj(object):
         self.B = B # birghtness
         self.C = C # contrast
 
-def setMat_plastic(mesh, meshColor, AOStrength = 0.0, 
+def setMat_plastic(mesh, meshColor, AOStrength = 0.0, alpha=1.,
                    roughness=0.1, metallic=0.2, specular=0.6, **kwargs):
     mat = bpy.data.materials.new('MeshMaterial')
     mesh.data.materials.append(mat)
@@ -170,6 +172,7 @@ def setMat_plastic(mesh, meshColor, AOStrength = 0.0,
     tree.nodes["Principled BSDF"].inputs['IOR'].default_value = 1.45
     tree.nodes["Principled BSDF"].inputs['Transmission'].default_value = 0
     tree.nodes["Principled BSDF"].inputs['Clearcoat Roughness'].default_value = 0
+    tree.nodes["Principled BSDF"].inputs['Alpha'].default_value = alpha
 
     # add Ambient Occlusion
     tree.nodes.new('ShaderNodeAmbientOcclusion')
