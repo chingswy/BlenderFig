@@ -82,7 +82,9 @@ CONFIG = {
         'camera_root': '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance',
         'res': [1024, 1024],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
-        'add_ground': False,
+        'add_ground': True,
+        'add_wall': False,
+        'format': 'PNG',
         'color_table': [
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
@@ -156,11 +158,12 @@ if __name__ == '__main__':
     if config['add_ground'] == True:
         size = 3
         build_plane(translation=(0, 0, 0), plane_size=size*2)
+    if config.get('add_wall', False):
         for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
             [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
             obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=False)
             setMat_plastic(obj, colorObj([1, 1, 1, 1]), metallic=0.3, specular=0.2)
-    elif isinstance(config['add_ground'], dict):
+    if isinstance(config['add_ground'], dict):
         bpy.ops.import_scene.fbx(filepath=config['add_ground']['filepath'])
         bpy.data.objects['Pole_basketball 15x28'].location = config['add_ground']['location']
 
@@ -175,6 +178,7 @@ if __name__ == '__main__':
     if not os.path.exists(config['camera_root']):
         config['camera_root'] = config['camera_root'].replace('/Users/shuaiqing', '')
     cameras = read_camera(join(config['camera_root'], 'intri.yml'), join(config['camera_root'], 'extri.yml'))
+    format = config.get('format', 'JPEG')
     for cam in config['cams']:
         K = cameras[cam]['K']
         R = cameras[cam]['R']
@@ -188,8 +192,8 @@ if __name__ == '__main__':
                 bpy.context.scene,
                 bpy.data.objects["Camera"],
                 num_samples=args.num_samples,
-                use_transparent_bg=False,
-                use_denoising=args.denoising,
+                use_transparent_bg=format == 'PNG',
+                use_denoising=True,
             )
         else:
             bpy.context.scene.render.engine = 'BLENDER_EEVEE'
@@ -203,12 +207,12 @@ if __name__ == '__main__':
             set_output_properties(bpy.context.scene, output_file_path=outdir, 
                 res_x=res_x, res_y=res_y, 
                 tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
-                format=args.format)
+                format=format)
             if args.animation:
                 bpy.ops.render.render(write_still=True, animation=True)
             else:
                 for frame in config['keyframe']:
                     bpy.context.scene.frame_set(frame)
-                    bpy.ops.render.render(write_still=True)
+                    # bpy.ops.render.render(write_still=True)
     # if args.out_blend is not None:
     #     bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)
