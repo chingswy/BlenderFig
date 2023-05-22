@@ -152,6 +152,7 @@ if __name__ == '__main__':
     bpy.context.scene.render.engine = 'CYCLES'
 
     if args.mode not in CONFIG.keys():
+        print('Please specify the mode: {}'.format(CONFIG.keys()))
         raise NotImplementedError
         exit()
     config = CONFIG[args.mode]

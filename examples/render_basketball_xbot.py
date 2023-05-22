@@ -24,7 +24,7 @@ from myblender.setup import (
 def set_camera_green(camera):
     K =[13365.842100, 0.000000, 1266.274010, 0.000000, 13353.006300, 1029.775970, 0.000000, 0.000000, 1.000000]
     K = np.array(K).reshape(3, 3)
-    set_intrinsic(K, camera, sensor_width=1.0)
+    set_intrinsic(K, camera, 2448, 2048)
     R = [0.021391, 0.999674, -0.013928, 0.160876, -0.017191, -0.986825, -0.986743, 0.018868, -0.161191]
     T = [1.414816, -0.064123, 30.749459]
     R = np.array(R).reshape(3, 3)
