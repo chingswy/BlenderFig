@@ -19,6 +19,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
+            'blenderqing=myblender.entry:main',
+            'blenderqingback=myblender.entry:back',
         ],
     },
     install_requires=[],
