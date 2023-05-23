@@ -140,19 +140,19 @@ if __name__ == '__main__':
     #     config['camera_root'] = config['camera_root'].replace('', '')
     cameras = read_camera(join(config['camera_root'], 'intri.yml'), join(config['camera_root'], 'extri.yml'))
     for cam in config['cams']:
-        K = cameras[cam]['K']
-        R = cameras[cam]['R']
-        T = cameras[cam]['T']
-        # set_camera(location=[-3, 0.25, 0.7], rotation=[np.pi/2, 0., -np.pi/2])
+        # K = cameras[cam]['K']
+        # R = cameras[cam]['R']
+        # T = cameras[cam]['T']
+        set_camera(location=[-0.6, 3, 0], rotation=[np.pi/2, 0., np.pi])
         res_x, res_y = config['res']
-        set_extrinsic(R, T, camera)
-        set_intrinsic(K, camera, res_x, res_y)
+        # set_extrinsic(R, T, camera)
+        # set_intrinsic(K, camera, res_x, res_y)
         # setup render
         set_cycles_renderer(
             bpy.context.scene,
             bpy.data.objects["Camera"],
             num_samples=args.num_samples,
-            use_transparent_bg=False,
+            use_transparent_bg=True,
             use_denoising=args.denoising,
         )
 
