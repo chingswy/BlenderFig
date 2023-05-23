@@ -120,6 +120,7 @@ if __name__ == "__main__":
     )
 
     scene = bpy.context.scene
+    offset = [0, -0.5, -0.2]
     for frame, filename in enumerate(filenames):
         scene.frame_set(frame)
         print('Loading frames: ', frame)
@@ -131,7 +132,7 @@ if __name__ == "__main__":
             pid = param['id']
             character = bpy.data.objects[models[pid]]
             bones = character.pose.bones
-            animate_by_smpl(param, bones, frame, offset=[0,0,-0.2])
+            animate_by_smpl(param, bones, frame, offset=offset)
 
     nFrames = bpy.context.scene.frame_end
     camera = bpy.data.objects['Camera']
@@ -147,5 +148,7 @@ if __name__ == "__main__":
             res_x=args.res_x, res_y=args.res_y, 
             tile_x=args.res_x, tile_y=args.res_y, resolution_percentage=100,
             format='PNG')
-
-        bpy.ops.render.render(write_still=True, animation=True)
+        
+        # bpy.ops.render.render(write_still=True, animation=True)
+        bpy.context.scene.frame_set(40)
+        bpy.ops.render.render(write_still=True, animation=False)
