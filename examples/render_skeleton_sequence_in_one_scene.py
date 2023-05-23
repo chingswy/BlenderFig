@@ -112,30 +112,36 @@ CONFIG = {
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
         ]
+    },
+    'hug8':{
+        'res': [1920, 540],
+        'light': {'location': [0, 0, 5], 'rotation': [np.pi/4, 0, 0], 'strength': 8.0},
+        'add_ground': True,
+        'color_table': [
+            (8/255, 76/255, 97/255, 1.), # blue
+            (219/255, 58/255, 52/255, 1.), # red
+        ],
+        'keyframes': [40, 60, 80, 100, 120],
     }
 }
 
 CONFIG['pair12_hug12'] = CONFIG['pair10_dance10']
 CONFIG['demo511'] = CONFIG['demo558']
 
-def load_skeletons_from_dir(path, skeltype, color_table, key='gt'):
-    if os.path.isdir(path):
-        filenames = sorted(os.listdir(path))
-    else:
-        filenames = glob.glob(path + '*')
-        filenames = sorted([os.path.basename(x) for x in filenames])
-        path = os.path.dirname(path)
-    # bpy.context.scene.frame_end = len(filenames) - 1
-    # caches = {}
-    interval = 10
-    filenames = filenames[::interval]
+def load_skeletons_from_dir(path, skeltype, color_table, key='gt', config={}):
+    filenames0 = [os.path.join(path, '{:06d}.json'.format(i)) for i in config['keyframes']]
+    filenames1 = [path + '{:06d}.json'.format(i) for i in config['keyframes']]
+    filenames = filenames0 + filenames1
+    filenames = [f for f in filenames if os.path.exists(f)]
+    if len(filenames) == 0:
+        print(filenames0, filenames1)
+        exit(0)
     num_frames = len(filenames)
-    xrange = 2 * num_frames
-    x_offset = np.linspace(xrange / 2, -xrange / 2, num_frames)
+    x_step = 0.7
+    x_offset = x_step * (np.arange(num_frames) * 2 - (2*num_frames-1)/2) + 1
     bbox_thr = 2
     for frame, filename in enumerate(filenames):
         print('Loading frame', frame)
-        # bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(path, filename))
         pred = np.array(record[key])
         if pred.shape[-1] == 4:
@@ -150,9 +156,9 @@ def load_skeletons_from_dir(path, skeltype, color_table, key='gt'):
                 continue
             pred_ = pred[i].copy()
             pred_[..., :1] += x_offset[frame]
-            bbox = pred_[:, :3].max(axis=0) - pred_[:, :3].min(axis=0)
-            if np.prod(bbox) > bbox_thr:
-                continue
+            # bbox = pred_[:, :3].max(axis=0) - pred_[:, :3].min(axis=0)
+            # if np.prod(bbox) > bbox_thr:
+            #     continue
             # if pid not in caches:
             #     if frame > 1:continue
             points, limbs = add_skeleton(pred_, pid=list(color_table[i]), skeltype=skeltype, mode='ellipsold')
@@ -167,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('--offset', type=float, default=[0., 0., 0.], nargs=3)
     parser.add_argument('--ground', action='store_true')
     parser.add_argument('--animation', action='store_true')
-    parser.add_argument('--key', choices=['pred', 'gt'], type=str, default='gt')
+    parser.add_argument('--key', choices=['pred', 'gt'], type=str, default='pred')
     parser.add_argument('--mode', type=str, default=None)
     args = parse_args(parser)
 
@@ -182,10 +188,6 @@ if __name__ == '__main__':
     if config['add_ground'] == True:
         size = 20
         build_plane(translation=(0, 0, 0), plane_size=size*2)
-        # for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
-        #     [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
-        #     obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=True)
-        #     setMat_plastic(obj, colorObj([1, 1, 1, 1]), metallic=0.3, specular=0.2)
     elif isinstance(config['add_ground'], dict):
         bpy.ops.import_scene.fbx(filepath=config['add_ground']['filepath'])
         bpy.data.objects['Pole_basketball 15x28'].location = config['add_ground']['location']
@@ -197,11 +199,11 @@ if __name__ == '__main__':
             for cfg in config['light']:
                 add_sunlight(**cfg)
 
-    load_skeletons_from_dir(args.path, args.skel, config.get('color_table', color_table), args.key)
+    load_skeletons_from_dir(args.path, args.skel, config.get('color_table', color_table), args.key, config)
     res_x, res_y = config['res']
     K = np.array([
-        [4000., 0, res_x / 2],
-        [0, 4000., res_y / 2],
+        [2000., 0, res_x / 2],
+        [0, 2000., res_y / 2],
         [0, 0, 1]
     ]).reshape(3, 3)
     # R = np.array([
@@ -211,9 +213,9 @@ if __name__ == '__main__':
     # ]).reshape(3, 3)
     # T = np.array([0, 0, 0]).reshape(3, 1)
     # set_extrinsic(R, T, camera)
-    camera.location = [0, -20, 1]
+    camera.location = [0, -10, 2.5]
     camera.rotation_mode = "XYZ"
-    camera.rotation_euler = (np.pi/2, 0, 0)
+    camera.rotation_euler = (80*np.pi/180, 0, 0)
     set_intrinsic(K, camera, res_x, res_y)
     # setup render
     if not args.nocycle:
@@ -221,8 +223,8 @@ if __name__ == '__main__':
             bpy.context.scene,
             bpy.data.objects["Camera"],
             num_samples=args.num_samples,
-            use_transparent_bg=False,
-            use_denoising=args.denoising,
+            use_transparent_bg=True,
+            use_denoising=True,
         )
     else:
         bpy.context.scene.render.engine = 'BLENDER_EEVEE'
@@ -230,11 +232,10 @@ if __name__ == '__main__':
 
     n_parallel = 1
     if args.out is not None and not args.debug:
-        outdir = join(args.out, 'output')
-        set_output_properties(bpy.context.scene, output_file_path=outdir, 
+        set_output_properties(bpy.context.scene, output_file_path=args.out, 
             res_x=res_x, res_y=res_y, 
             tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
-            format=args.format)
+            format='PNG')
         # if args.animation:
         #     bpy.ops.render.render(write_still=True, animation=True)
         # else:
