@@ -137,15 +137,25 @@ def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.),
     look_at(cone, end)
     # set_material_rgb(bpy.data.materials[matname], [0, 0, 0])
 
-def _create_image(imgname):
+def _create_image(imgname, remove_shadow=False):
     filename = join(assets_dir, 'background.obj')
     image_mesh, name, matname = myimport(filename)
     key, key_image = name
     bpy.data.images[key_image].filepath = imgname
-    return image_mesh
+    obj = bpy.data.objects[key]
+    mat = obj.active_material
+    nodes = mat.node_tree.nodes
+    if remove_shadow:
+        links = mat.node_tree.links
+        out = nodes[1]
+        image = nodes[2]
+        node = nodes.new('ShaderNodeBackground')
+        links.new(image.outputs[0], node.inputs[0])
+        links.new(node.outputs[0], out.inputs[0])
+    return image_mesh 
 
-def create_image_corners(imgname, corners):
-    image_mesh = _create_image(imgname)
+def create_image_corners(imgname, corners, remove_shadow=False):
+    image_mesh = _create_image(imgname, remove_shadow)
     vertices = image_mesh.data.vertices
     assert len(vertices) == len(corners), len(vertices)
     for i in range(corners.shape[0]):
@@ -197,6 +207,22 @@ def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha:
 
     # arrange_nodes(node_tree)
 
+def build_checker_board_transparent_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.) -> None:
+    output_node = node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+    principled_node = node_tree.nodes.new(type='ShaderNodeBsdfTransparent')
+    checker_texture_node = node_tree.nodes.new(type='ShaderNodeTexChecker')
+
+    # set_principled_node(principled_node=principled_node, alpha=alpha)
+    checker_texture_node.inputs['Scale'].default_value = size
+
+    node_tree.links.new(checker_texture_node.outputs['Color'], principled_node.inputs['Color'])
+    node_tree.links.new(principled_node.outputs['BSDF'], output_node.inputs['Surface'])
+
+    node_tree.nodes["Checker Texture"].inputs[1].default_value = (1, 1, 1, 1)
+    node_tree.nodes["Checker Texture"].inputs[2].default_value = (0, 0, 0, 1)
+
+    # arrange_nodes(node_tree)
+
 def create_plane_blender(location = (0.0, 0.0, 0.0),
                  rotation = (0.0, 0.0, 0.0),
                  size = 2.0,
@@ -209,15 +235,20 @@ def create_plane_blender(location = (0.0, 0.0, 0.0),
     if name is not None:
         current_object.name = name
     if not shadow:
-        current_object.visible_shadow = False
-        # current_object.cycles_visibility.shadow = False
+        if hasattr(current_object, 'visible_shadow'):
+            current_object.visible_shadow = False
+        else:
+            current_object.cycles_visibility.shadow = False
     return current_object
 
-def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1):
+def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transparent=False):
     plane = create_plane_blender(size=plane_size, name="Floor")
     plane.location = translation
     floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)
-    build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
+    if use_transparent:
+        build_checker_board_transparent_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
+    else:
+        build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
     plane.data.materials.append(floor_mat)
     return plane
 
@@ -231,7 +262,7 @@ def bound_from_keypoint(keypoint, padding=0.1, min_z=0):
     scale = upper - lower
     return center, scale, np.stack([lower, upper])
 
-def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
+def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), rotation=None, pid=0):
     bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD')
     bpy.ops.object.modifier_add(type='WIREFRAME')
     obj = bpy.context.object
@@ -241,12 +272,16 @@ def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), pid=0):
     matname = "Material_{}".format(name)
     mat = add_material(matname, use_nodes=True, make_node_tree_empty=False)
     obj.data.materials.append(mat)
-
-    obj.rotation_euler = (0, 0, 0)
+    if rotation is not None:
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = rotation
+    else:
+        obj.rotation_euler = (0, 0, 0)
     set_material_i(bpy.data.materials[matname], pid, use_plastic=False)
     obj.scale = scale
     obj.location = location
-    obj.visible_shadow = False
+    if hasattr(obj, 'visible_shadow'):
+        obj.visible_shadow = False
     try:
         obj.cycles_visibility.shadow = False
     except:
@@ -281,7 +316,8 @@ def create_camera_blender(R, T, scale=0.1, pid=0):
     center = - R.T @ T
     obj.location = center.T[0]
     obj.rotation_euler = Matrix(R.T).to_euler()
-    obj.visible_shadow = False
+    if hasattr(obj, 'visible_shadow'):
+        obj.visible_shadow = False
 
 def load_humanmesh(filename, pid, meshColor=None, translation=None, rotation=None, with_bbox=True):
     assert filename.endswith('.obj'), filename
