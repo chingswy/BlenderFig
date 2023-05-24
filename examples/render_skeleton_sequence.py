@@ -122,6 +122,23 @@ CONFIG = {
             (219/255, 58/255, 52/255, 1.), # red
         ],
         'format': 'JPEG'
+    },
+     'hi4d':{
+        'cams': ['58860488'],
+        'cams_custom': {
+            'normal': [[-0.14,-3.45,2.31],[np.deg2rad(63.7),np.deg2rad(-0.05),np.deg2rad(0.313)]],
+            'bird': [[-0.27,-1.80,3.43],[np.deg2rad(33.2),np.deg2rad(-0.5),np.deg2rad(-0.68)]]
+        },
+        'keyframe': [40],
+        'camera_root': './data/chi3d_easymocap/s03_Hug 8',
+        'res': [900, 900],
+        'light': {'location': [0, -1, 5], 'rotation': [0., np.pi/4, 0], 'strength': 4.0},
+        'add_ground': True,
+        'color_table': [
+            (8/255, 76/255, 97/255, 1.), # blue
+            (219/255, 58/255, 52/255, 1.), # red
+        ],
+        'format': 'JPEG'
     }
 }
 
