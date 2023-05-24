@@ -93,7 +93,8 @@ CONFIG = {
     },
     'green1':{
         'cams': ['19502328'],
-        'keyframe': [44],
+        'keyframe': [44, 87],
+        'format': 'PNG',
         'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/extern/green-baseketball-seq/green-baseketball+000300+000450',
         'res': [2448, 2048],
         'light': [
@@ -159,7 +160,8 @@ def load_skeletons_from_dir(path, skeltype, color_table, interval=1):
         print('Loading frame', frame)
         bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(path, filename))
-        preds = np.array(record['pred'])
+        # preds = np.array(record['pred'])
+        preds = np.array(record['pred_by_softmax'])
         gts = np.array(record['gt'])
         preds = np.concatenate([preds[..., :3] , preds[..., -1:]], axis=-1)
         if preds.shape[0] == 0:
@@ -344,8 +346,13 @@ if __name__ == '__main__':
                     bpy.ops.render.render(write_still=True, animation=True)
                 else:
                     for frame in config['keyframe']:
+                        outdir = join(args.out, cam + '_' + str(frame) + '.png')
+                        set_output_properties(bpy.context.scene, output_file_path=outdir, 
+                            res_x=res_x, res_y=res_y, 
+                            tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
+                            format=format)
                         bpy.context.scene.frame_set(frame)
-                        # bpy.ops.render.render(write_still=True)
+                        bpy.ops.render.render(write_still=True)
 
     if args.out_blend is not None:
         bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

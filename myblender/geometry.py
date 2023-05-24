@@ -50,7 +50,10 @@ def create_any_mesh(filename, vid, scale=(1, 1, 1),
     set_material_i(cylinder, vid, **kwargs)
     if not shadow:
         bpy.data.materials[matname].shadow_method = 'NONE'
-        cylinder.cycles_visibility.shadow = False
+        try:
+            cylinder.cycles_visibility.shadow = False
+        except:
+            pass
     return cylinder
 
 def create_cylinder(vid, **kwargs):
@@ -113,7 +116,7 @@ def create_ellipsold(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs
     dir /= np.linalg.norm(dir)
     location = start + (end - start) / 2
     cylinder = create_any_mesh(join(assets_dir, 'sphere.obj'), vid,
-        scale=scale, location=location, shadow=True, **kwargs)
+        scale=scale, location=location, **kwargs)
     look_at(cylinder, end)
     return cylinder
 
@@ -241,7 +244,7 @@ def create_plane_blender(location = (0.0, 0.0, 0.0),
             current_object.cycles_visibility.shadow = False
     return current_object
 
-def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transparent=False):
+def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transparent=False, white=(1.,1.,1.,1.), black=(0.,0.,0.,0.)):
     plane = create_plane_blender(size=plane_size, name="Floor")
     plane.location = translation
     floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)

@@ -71,9 +71,10 @@ panoptic15inbody25 = [1,0,8,5,6,7,12,13,14,2,3,4,9,10,11]
 def load_skeletons_from_dir(path, skeltype, color_table, key='pred'):
     # filename = join(path, '{:06d}.json'.format())
     record_raw = read_skeleton(path)
-    record = {} 
-    record['gt'] = [x['keypoints3d'] for x in record_raw]
-    record['pids'] = [x['id'] for x in record_raw]
+    record = record_raw
+    if False:
+        record['gt'] = [x['keypoints3d'] for x in record_raw]
+        record['pids'] = [x['id'] for x in record_raw]
     pred = np.array(record[key])
     print(pred.shape)
     if 'pids' in record.keys():
@@ -84,7 +85,8 @@ def load_skeletons_from_dir(path, skeltype, color_table, key='pred'):
         pid = pids[i]
         if pid >= len(color_table):
             continue
-        pred_ = pred[i][panoptic15inbody25]
+        # pred_ = pred[i][panoptic15inbody25]
+        pred_ = pred[i]
         points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold')
         torso_vec = pred_[0, :3] - pred_[2, :3]
         torso_dir = torso_vec / np.linalg.norm(torso_vec)
@@ -107,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument('--ground', action='store_true')
     parser.add_argument('--animation', action='store_true')
     parser.add_argument('--mode', type=str, default=None)
-    parser.add_argument('--key', type=str, default='gt')
+    parser.add_argument('--key', type=str, default='pred')
     args = parse_args(parser)
 
     setup(rgb=(1,1,1,0))

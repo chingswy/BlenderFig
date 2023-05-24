@@ -1,0 +1,22 @@
+z511:
+  skeltype: panoptic15
+  cam: '09'
+  keyframes: [310]
+  camera_mode: 'x'
+  camera_keyframe:
+    60: # 手动在blender里找一个好的角度
+      rotation: [40, 0, -54]
+      location: [-2, -1.4, 3.3]
+  camera_root: '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance'
+  res: [1024, 1024]
+  light:
+    - location: [0, -1, 1]
+      rotation: [0., 30, 0]
+      strength: 4.0
+  add_ground: True
+  add_wall: False
+  format: 'PNG'
+  color_table: [
+      [8, 76, 97, 255], # blue
+      [219, 58, 52, 255], # red
+  ]

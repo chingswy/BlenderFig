@@ -66,7 +66,7 @@ CONFIG = {
         [13, 14]]
 }
 
-def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None):
+def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None, shadow=True):
     points = []
     for k3d in keypoints3d:
         if len(k3d) == 4 and k3d[3] < 0.01:
@@ -84,7 +84,7 @@ def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None
         if mode == 'line':
             obj = create_line(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
         else:
-            obj = create_ellipsold(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3])
+            obj = create_ellipsold(pid, 0.02, start=keypoints3d[i, :3], end=keypoints3d[j, :3], shadow=shadow)
         bpy.ops.object.shade_smooth()
         
         limbs.append(obj)

@@ -12,6 +12,7 @@ from os.path import join
 import numpy as np
 from myblender.camera_file import read_camera
 import bpy
+from mathutils import Vector, Quaternion, Matrix
 from myblender.geometry import (
     set_camera,
     build_plane,
@@ -51,13 +52,13 @@ for i, color in enumerate(color_table):
     color_table[i] = (*color_table[i], 1.0)
 
 CONFIG = {
-    'demo558':{
-        'cams': ['07'],
-        'keyframe': [300],
-        'camera_root': '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance',
+    '511':{
+        'cams': ['10'],
+        'keyframe': [350],
+        'camera_root': './data/511',
         'res': [1024, 1024],
         'light': {'location': [0, -1, 1], 'rotation': [0., np.pi/8, 0], 'strength': 4.0},
-        'add_ground': False,
+        'add_ground': True,
         'color_table': [
             (8/255, 76/255, 97/255, 1.), # blue
             (219/255, 58/255, 52/255, 1.), # red
@@ -65,10 +66,17 @@ CONFIG = {
     }
 }
 
-def load_skeletons_from_dir(path, skeltype, color_table):
-    filename = join(path, '{:06d}.jpg.json'.format(304))
-    record = read_skeleton(join(filename))
-    pred = np.array(record['pred'])
+panoptic15inbody25 = [1,0,8,5,6,7,12,13,14,2,3,4,9,10,11]
+
+def load_skeletons_from_dir(path, skeltype, color_table, key='pred'):
+    # filename = join(path, '{:06d}.json'.format())
+    record_raw = read_skeleton(path)
+    record = record_raw
+    if False:
+        record['gt'] = [x['keypoints3d'] for x in record_raw]
+        record['pids'] = [x['id'] for x in record_raw]
+    pred = np.array(record[key])
+    print(pred.shape)
     if 'pids' in record.keys():
         pids = record['pids']
     else:
@@ -77,9 +85,23 @@ def load_skeletons_from_dir(path, skeltype, color_table):
         pid = pids[i]
         if pid >= len(color_table):
             continue
+        # pred_ = pred[i][panoptic15inbody25]
         pred_ = pred[i]
-        points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold')
-        create_bbox3d(scale=[0.5, 0.5, 1], location=pred_[2, :3], pid=color_table[i])
+        pred_ = np.hstack([pred_, np.zeros((15, 1))])
+        pred_[[0, 2], -1] = 1.
+        points, limbs = add_skeleton(pred_, pid=color_table[i], skeltype=skeltype, mode='ellipsold', shadow=False)
+        torso_vec = pred_[0, :3] - pred_[2, :3]
+        torso_dir = torso_vec / np.linalg.norm(torso_vec)
+        if pid == 1 or True:
+            axis = np.array([0., 0., 1.])
+            r = np.cross(axis, torso_dir)
+            c = np.sum(axis * torso_dir)
+            mat = np.asarray([[0, -r[2], r[1]],
+                            [r[2], 0, -r[0]],
+                            [-r[1], r[0], 0]])
+            mat = np.eye(3) + mat + mat @ mat / (1 + c)
+            rotation = Matrix(mat).to_quaternion()   
+            create_bbox3d(scale=[0.6, 0.6, 0.8], location=pred_[2, :3], pid=color_table[i], rotation=rotation)
 
 if __name__ == '__main__':
     parser = get_parser()
@@ -89,6 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('--ground', action='store_true')
     parser.add_argument('--animation', action='store_true')
     parser.add_argument('--mode', type=str, default=None)
+    parser.add_argument('--key', type=str, default='pred')
     args = parse_args(parser)
 
     setup(rgb=(1,1,1,0))
@@ -100,12 +123,12 @@ if __name__ == '__main__':
         exit()
     config = CONFIG[args.mode]
     if config['add_ground'] == True:
-        size = 3
-        # build_plane(translation=(0, 0, 0), plane_size=size*2)
-        for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
-            [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
-            obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=False)
-            setMat_plastic(obj, colorObj([1, 1, 1, 1]), metallic=0.3, specular=0.2)
+        size = 2
+        build_plane(translation=(0, 0, 0), plane_size=size*2, use_transparent=False)
+        # for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
+        #     [[0, np.pi/2, 0], [0, -np.pi/2, 0], [np.pi/2, 0, 0], [-np.pi/2, 0, 0]]):
+        #     obj = create_plane_blender(size=size*2, location=loc, rotation=rot, shadow=False)
+        #     setMat_plastic(obj, colorObj([1, 1, 1, 1]), metallic=0.3, specular=0.2)
     elif isinstance(config['add_ground'], dict):
         bpy.ops.import_scene.fbx(filepath=config['add_ground']['filepath'])
         bpy.data.objects['Pole_basketball 15x28'].location = config['add_ground']['location']
@@ -117,18 +140,13 @@ if __name__ == '__main__':
             for cfg in config['light']:
                 add_sunlight(**cfg)
 
-    load_skeletons_from_dir(args.path, args.skel, config.get('color_table', color_table))
-    if not os.path.exists(config['camera_root']):
-        config['camera_root'] = config['camera_root'].replace('/Users/shuaiqing', '')
-    cameras = read_camera(join(config['camera_root'], 'intri.yml'), join(config['camera_root'], 'extri.yml'))
-    for cam in config['cams']:
-        K = cameras[cam]['K']
-        R = cameras[cam]['R']
-        T = cameras[cam]['T']
-        # set_camera(location=[-3, 0.25, 0.7], rotation=[np.pi/2, 0., -np.pi/2])
-        res_x, res_y = config['res']
-        set_extrinsic(R, T, camera)
-        set_intrinsic(K, camera, res_x, res_y)
+    load_skeletons_from_dir(args.path, args.skel, config.get('color_table', color_table), args.key)
+    # if not os.path.exists(config['camera_root']):
+    #     config['camera_root'] = config['camera_root'].replace('', '')
+    # cameras = read_camera(join(config['camera_root'], 'intri.yml'), join(config['camera_root'], 'extri.yml'))
+    set_camera(location=(-3.29, 0.22, 2.6), rotation=(70*np.pi/180, 0, -np.pi/2), focal=30)
+    if True:
+        res_x, res_y = 1920, 1080
         # setup render
         set_cycles_renderer(
             bpy.context.scene,
@@ -137,22 +155,26 @@ if __name__ == '__main__':
             use_transparent_bg=True,
             use_denoising=True,
         )
-
+        outdir = 'output/pipeline_center.png'
         n_parallel = 1
-        if not args.animation:
-            bpy.context.scene.frame_set(config['keyframe'][0])
-        if args.out is not None and not args.debug:
-            outdir = join(args.out, cam + '_')
-            set_output_properties(bpy.context.scene, output_file_path=outdir, 
+        set_output_properties(bpy.context.scene, output_file_path=outdir, 
                 res_x=res_x, res_y=res_y, 
                 tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
                 format='PNG')
-            if args.animation:
-                bpy.ops.render.render(write_still=True, animation=True)
-            else:
-                for frame in config['keyframe']:
-                    bpy.context.scene.frame_set(frame)
-                    bpy.ops.render.render(write_still=True)
-        break
-    # if args.out_blend is not None:
-    #     bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)
+        # bpy.ops.render.render(write_still=True)
+        # if not args.animation:
+        #     bpy.context.scene.frame_set(config['keyframe'][0])
+        # if args.out is not None and not args.debug:
+        #     outdir = join(args.out, cam + '_')
+        #     set_output_properties(bpy.context.scene, output_file_path=outdir, 
+        #         res_x=res_x, res_y=res_y, 
+        #         tile_x=res_x//n_parallel, tile_y=res_y, resolution_percentage=100,
+        #         format=args.format)
+        #     if args.animation:
+        #         bpy.ops.render.render(write_still=True, animation=True)
+        #     else:
+        #         for frame in config['keyframe']:
+        #             bpy.context.scene.frame_set(frame)
+        #             bpy.ops.render.render(write_still=True)
+    if args.out_blend is not None:
+        bpy.ops.wm.save_as_mainfile(filepath=args.out_blend)

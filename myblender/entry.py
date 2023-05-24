@@ -8,6 +8,7 @@ def _main(background):
     parser.add_argument('args', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     blender = os.environ['blender']
+    args.args[0] = '"{}"'.format(args.args[0])
     cmd = f'{blender} -noaudio {"-b" if background else ""} --python {args.path} -- {" ".join(args.args)}'
     print(cmd)
     os.system(cmd)
