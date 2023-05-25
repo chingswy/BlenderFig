@@ -8,7 +8,7 @@ z511:
     # 手动在blender里找一个好的角度
       rotation: [40, 0, -54]
       location: [-2, -1.4, 3.3]
-  camera_root: '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance'
+  camera_root: '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/511'
   res: [1024, 1024]
   light:
     - location: [0, -1, 1]
