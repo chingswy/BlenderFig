@@ -55,7 +55,9 @@ def parsing_frames(path, filenames, cfg):
         print('Loading frame', frame)
         bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(path, filename))
-        pred = np.array(record['pred'])
+        pred = np.array(record[args.key])
+        if pred.shape[-1] == 3:
+            pred = np.dstack([pred, np.ones_like(pred[..., :1])])
         file_frame = int(filename.replace('.jpg', '').replace('.json', ''))
         for i in range(len(pred)):
             pid = i
@@ -75,6 +77,7 @@ def parsing_frames(path, filenames, cfg):
                 start_x = camera.rotation_euler[0]
                 camera.keyframe_insert('location', frame=frame)
                 camera.keyframe_insert('rotation_euler', frame=frame)
+                start_frame = frame
                 for _frame, delta in cfg['camera_keyframe'].items():
                     bpy.context.scene.frame_set(frame + _frame)
                     # 设置相机约束
@@ -88,11 +91,18 @@ def parsing_frames(path, filenames, cfg):
                 set_extrinsic(R, T, camera)
                 camera.keyframe_insert('location', frame=frame)
                 camera.keyframe_insert('rotation_euler', frame=frame)
+                for _frame in range(start_frame, frame):
+                    for pid, (points, limbs) in caches.items():
+                        for p in limbs:
+                            p.keyframe_insert(data_path='rotation_euler', frame=_frame)
+
         frame += 1
+    bpy.context.scene.frame_end = frame
             
 
 if __name__ == '__main__':
     parser = get_parser()
+    parser.add_argument('--key', type=str, default='pred')
     parser.add_argument('--skel', type=str, default='panoptic15')
     parser.add_argument('--cfg', type=str, default='assets/config_skeleton.yml')
     parser.add_argument('--animation', action='store_true')
@@ -106,10 +116,11 @@ if __name__ == '__main__':
         exit()
 
     setup(rgb=(1,1,1,0))
-    parsing_frames(args.path, filenames, cfg[args.mode])
+    cfg = cfg[args.mode]
+    parsing_frames(args.path, filenames, cfg)
     res_x, res_y = cfg['res']
     for _cfg in cfg['light']:
-        add_sunlight(**cfg)
+        add_sunlight(**_cfg)
     
     if not args.nocycle:
         set_cycles_renderer(

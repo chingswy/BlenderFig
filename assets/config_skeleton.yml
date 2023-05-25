@@ -1,10 +1,11 @@
 z511:
   skeltype: panoptic15
   cam: '09'
-  keyframes: [310]
+  keyframes: []
   camera_mode: 'x'
   camera_keyframe:
-    60: # 手动在blender里找一个好的角度
+    60: # 表示过渡的帧数
+    # 手动在blender里找一个好的角度
       rotation: [40, 0, -54]
       location: [-2, -1.4, 3.3]
   camera_root: '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance'
