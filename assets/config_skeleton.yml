@@ -39,9 +39,15 @@ z558:
     # 手动在blender里找一个好的角度
       rotation: [62, 0, 180]
       location: [0.62, 3, 2.0]
-    115:
+    120:
       rotation: [62, 0, 240]
       location: [-2, 2.3, 2.0]
+    140:
+      rotation: [62.2, 1.04, 270]
+      location: [-2.5, 0, 2.07]        
+    160:
+      rotation: [62.2, 1.04, 306.1]
+      location: [-1.97, -1.41, 2.07]
     final: stop
   camera_root: '/Users/shuaiqing/nas/ZJUMoCap/DeepMocap/230511/558-balance'
   res: [1024, 1024]
