@@ -13,7 +13,7 @@ z511:
   light:
     - location: [0, -1, 1]
       rotation: [0., 30, 0]
-      strength: 4.0
+      strength: 10.
   add_ground: True
   add_wall: False
   format: 'PNG'

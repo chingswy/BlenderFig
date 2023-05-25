@@ -36,6 +36,9 @@ def load_skeletons_from_dir(path, interval=1):
 
 def set_camera(cfg):
     camera = bpy.data.objects['Camera']
+    if not os.path.exists(cfg['camera_root']) and cfg['camera_root'].startswith('/Users/shuaiqing'):
+        cfg['camera_root'] = cfg['camera_root'].replace('/Users/shuaiqing', '')
+
     cameras = read_camera(join(cfg['camera_root'], 'intri.yml'), join(cfg['camera_root'], 'extri.yml'))
     cam = cfg['cam']
     K = cameras[cam]['K']
@@ -125,7 +128,7 @@ if __name__ == '__main__':
         _cfg['rotation'] = [np.deg2rad(d) for d in _cfg['rotation']]
         add_sunlight(**_cfg)
     if cfg['add_ground'] == True:
-        size = 4
+        size = 2
         build_plane(translation=(0, 0, 0), plane_size=size*2)
     
     if not args.nocycle:
@@ -133,7 +136,7 @@ if __name__ == '__main__':
             bpy.context.scene,
             bpy.data.objects["Camera"],
             num_samples=args.num_samples,
-            use_transparent_bg=format == 'PNG',
+            use_transparent_bg=True,
             use_denoising=True,
         )
     else:
