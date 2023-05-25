@@ -78,12 +78,20 @@ def parsing_frames(path, filenames, cfg, skeltype):
         if file_frame in cfg['keyframes']:
             # 对于关键帧，增加相机模式
             center = pred[:, :, :3].mean(axis=0).mean(axis=0)
-            if cfg['camera_mode'] == 'x': # 绕x轴旋转
+            if cfg['camera_mode'] == 'set': # 绕x轴旋转
                 start_x = camera.rotation_euler[0]
                 camera.keyframe_insert('location', frame=frame)
                 camera.keyframe_insert('rotation_euler', frame=frame)
                 start_frame = frame
+                new_frame = start_frame
                 for _frame, delta in cfg['camera_keyframe'].items():
+                    if _frame == 'final':
+                        frame = new_frame
+                        if isinstance(delta, int):
+                            set_extrinsic(R, T, camera)
+                            camera.keyframe_insert('location', frame=frame)
+                            camera.keyframe_insert('rotation_euler', frame=frame)
+                        break
                     bpy.context.scene.frame_set(frame + _frame)
                     # 设置相机约束
                     camera.location = delta['location']
@@ -92,10 +100,7 @@ def parsing_frames(path, filenames, cfg, skeltype):
                     # 在动画时间轴上创建一个关键帧
                     camera.keyframe_insert(data_path="rotation_euler", frame=frame + _frame)
                     camera.keyframe_insert(data_path="location", frame=frame + _frame)
-                frame += _frame * 2
-                set_extrinsic(R, T, camera)
-                camera.keyframe_insert('location', frame=frame)
-                camera.keyframe_insert('rotation_euler', frame=frame)
+                    new_frame = start_frame + _frame
                 for _frame in range(start_frame, frame):
                     for pid, (points, limbs) in caches.items():
                         for p in limbs:
