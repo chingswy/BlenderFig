@@ -17,14 +17,14 @@ from myblender.setup import (
 from myblender.camera_file import read_camera
 from myblender.camera import set_extrinsic, set_intrinsic
 from myblender.skeleton import read_skeleton, add_skeleton, update_skeleton
-from myblender.geometry import look_at
+from myblender.geometry import look_at, build_plane
 from math import radians
 
 def load_yaml_cfg(path):
     cfg = yaml.load(open(path, 'r'), Loader=yaml.SafeLoader)
     return cfg
 
-def load_skeletons_from_dir(path, skeltype, interval=1):
+def load_skeletons_from_dir(path, interval=1):
     if os.path.isdir(path):
         filenames = sorted(os.listdir(path))
     else:
@@ -46,8 +46,7 @@ def set_camera(cfg):
     set_intrinsic(K, camera, res_x, res_y)
     return camera, R, T
 
-def parsing_frames(path, filenames, cfg):
-    skeltype = cfg['skeltype']
+def parsing_frames(path, filenames, cfg, skeltype):
     frame = 0
     caches = {}
     camera, R, T = set_camera(cfg)
@@ -55,7 +54,10 @@ def parsing_frames(path, filenames, cfg):
         print('Loading frame', frame)
         bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(path, filename))
-        pred = np.array(record[args.key])
+        if isinstance(record, list):
+            pred = np.array([d['keypoints3d'] for d in record])[:, :15]
+        else:
+            pred = np.array(record[args.key])
         if pred.shape[-1] == 3:
             pred = np.dstack([pred, np.ones_like(pred[..., :1])])
         file_frame = int(filename.replace('.jpg', '').replace('.json', ''))
@@ -110,17 +112,21 @@ if __name__ == '__main__':
     parser.add_argument('--interval', type=int, default=1)
     args = parse_args(parser)
     cfg = load_yaml_cfg(args.cfg)
-    filenames = load_skeletons_from_dir(args.path, args.skel)
+    filenames = load_skeletons_from_dir(args.path)
     if args.mode not in cfg.keys():
         print(cfg.keys())
         exit()
 
     setup(rgb=(1,1,1,0))
     cfg = cfg[args.mode]
-    parsing_frames(args.path, filenames, cfg)
+    parsing_frames(args.path, filenames, cfg, args.skel)
     res_x, res_y = cfg['res']
     for _cfg in cfg['light']:
+        _cfg['rotation'] = [np.deg2rad(d) for d in _cfg['rotation']]
         add_sunlight(**_cfg)
+    if cfg['add_ground'] == True:
+        size = 4
+        build_plane(translation=(0, 0, 0), plane_size=size*2)
     
     if not args.nocycle:
         set_cycles_renderer(

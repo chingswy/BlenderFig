@@ -34,7 +34,8 @@ CONFIG = {
     [23, 22],
     [24, 11]
     ],
-    'body15': [[ 1,  0],
+    'body15': [
+    [ 1,  0],
     [ 2,  1],
     [ 3,  2],
     [ 4,  3],
@@ -68,6 +69,7 @@ CONFIG = {
 
 def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None, shadow=True):
     points = []
+    kintree = CONFIG[skeltype]
     for k3d in keypoints3d:
         if len(k3d) == 4 and k3d[3] < 0.01:
             points.append(None)
@@ -76,8 +78,8 @@ def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None
         bpy.ops.object.shade_smooth()
         points.append(obj)
     limbs = []
-    kintree = CONFIG[skeltype]
     for (i, j) in kintree:
+        print(i, j)
         if keypoints3d.shape[1] == 4 and (keypoints3d[i, 3] < 0.01 or keypoints3d[j, 3] < 0.01):
             limbs.append(None)
             continue
@@ -90,14 +92,24 @@ def add_skeleton(keypoints3d, pid, skeltype, mode='line', color=None, frame=None
         limbs.append(obj)
     return points, limbs
 
-def update_skeleton(keypoints3d, skeltype, points, limbs, frame):
+def update_skeleton(keypoints3d, skeltype, points, limbs, frame, 
+                    conf_thres=0.0, dist_thres=1.):
     # TODO: 修正一下骨长；以第一帧的骨长为准
-
-    for i in range(keypoints3d.shape[0]):
-        points[i].location = keypoints3d[i, :3]
-        points[i].keyframe_insert('location', frame=frame)
+    valid_ = keypoints3d[:, 3].copy() > conf_thres
     kintree = CONFIG[skeltype]
+    for i in range(keypoints3d.shape[0]):
+        if keypoints3d[i, 3] > conf_thres:
+            target = keypoints3d[i, :3]
+            current = points[i].location
+            dist = np.linalg.norm(target - current)
+            if dist > dist_thres:
+                valid_[i] = 0
+                continue
+            points[i].location = keypoints3d[i, :3]
+            points[i].keyframe_insert('location', frame=frame)
     for ilimb, (i, j) in enumerate(kintree):
+        if not (valid_[i] and valid_[j]):
+            continue
         obj = limbs[ilimb]
         start, end = keypoints3d[i, :3], keypoints3d[j, :3]
         length = np.linalg.norm(end - start)
