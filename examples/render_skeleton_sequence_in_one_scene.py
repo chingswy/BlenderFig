@@ -161,7 +161,7 @@ def load_skeletons_from_dir(path, skeltype, color_table, key='gt', config={}):
             #     continue
             # if pid not in caches:
             #     if frame > 1:continue
-            points, limbs = add_skeleton(pred_, pid=list(color_table[i]), skeltype=skeltype, mode='ellipsold')
+            points, limbs = add_skeleton(pred_, pid=list(color_table[1-i]), skeltype=skeltype, mode='ellipsold')
             #     caches[pids[i]] = (points, limbs)
             # points, limbs = caches[pid]
             # update_skeleton(pred_, skeltype, points, limbs, frame)
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     config = CONFIG[args.mode]
     if config['add_ground'] == True:
         size = 20
-        build_plane(translation=(0, 0, 0), plane_size=size*2)
+        # build_plane(translation=(0, 0, 0), plane_size=(size, 0.5))
     elif isinstance(config['add_ground'], dict):
         bpy.ops.import_scene.fbx(filepath=config['add_ground']['filepath'])
         bpy.data.objects['Pole_basketball 15x28'].location = config['add_ground']['location']

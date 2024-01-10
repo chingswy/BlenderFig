@@ -8,6 +8,7 @@
 # For example, in my MacOS:
 /Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m -m ensurepip --upgrade
 /Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m setup.py develop
+/Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m install PyYaml ipdb
 ```
 
 ## render_example.py

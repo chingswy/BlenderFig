@@ -93,18 +93,20 @@ CONFIG = {
     },
     'green1':{
         'cams': ['19502328'],
-        'keyframe': [44, 87],
+        # 'keyframe': [44, 87, 100, 110, 120, 130, 140, 149],
+        'keyframe': [44],
         'format': 'PNG',
         'camera_root': '/Users/shuaiqing/nas/home/shuaiqing/extern/green-baseketball-seq/green-baseketball+000300+000450',
         'res': [2448, 2048],
         'light': [
             {'location': (2., 5., 5.), 'rotation': (-np.pi/4, 0, 0), 'strength': 1.},
             {'location': (2., -5., 5.), 'rotation': (np.pi/4, 0, 0), 'strength': 1.}],
-        'add_ground': {
-            'filepath': 'assets/Basketball_15x28.fbx',
-            'name': 'Pole_basketball 15x28',
-            'location': (14, 0, 0)
-        },
+        # 'add_ground': {
+        #     'filepath': 'assets/Basketball_15x28.fbx',
+        #     'name': 'Pole_basketball 15x28',
+        #     'location': (14, 0, 0)
+        # },
+        'add_ground': True,
         'color_table': [color_table[i] for i in [2, 2, 0, 0, 0, 0, 3, 1, 4, 0, 0]]
     },
     'chi3d':{
@@ -161,7 +163,7 @@ def load_skeletons_from_dir(path, skeltype, color_table, interval=1):
         bpy.context.scene.frame_set(frame)
         record = read_skeleton(join(path, filename))
         # preds = np.array(record['pred'])
-        preds = np.array(record['pred_by_softmax'])
+        preds = np.array(record['pred'])
         gts = np.array(record['gt'])
         preds = np.concatenate([preds[..., :3] , preds[..., -1:]], axis=-1)
         if preds.shape[0] == 0:
@@ -256,7 +258,7 @@ if __name__ == '__main__':
         exit()
     config = CONFIG[args.mode]
     if config['add_ground'] == True:
-        size = 3
+        size = 5
         build_plane(translation=(0, 0, 0), plane_size=size*2)
     if config.get('add_wall', False):
         for loc, rot in zip([[size, 0, size], [-size, 0, size], [0, size, size], [0, -size, size]], 
