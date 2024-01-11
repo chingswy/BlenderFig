@@ -238,3 +238,19 @@ def set_extrinsic(R_world2cv, T_world2cv, camera):
     location = -R_cv2world @ T_world2cv
     camera.location = location
     camera.matrix_world = Matrix.Translation(location) @ rotation.to_4x4()
+
+# Our contribution below
+def get_3x4_RT_matrix_from_blender(obj):
+    isCamera = (obj.type == 'CAMERA')
+    R_BlenderView_to_OpenCVView = np.diag([1 if isCamera else -1,-1,-1])
+
+    location, rotation = obj.matrix_world.decompose()[:2]
+    R_BlenderView = rotation.to_matrix().transposed()
+
+    T_BlenderView = -1.0 * R_BlenderView @ location
+
+    R_OpenCV = R_BlenderView_to_OpenCVView @ R_BlenderView
+    T_OpenCV = R_BlenderView_to_OpenCVView @ T_BlenderView
+    
+    RT_OpenCV = np.column_stack((R_OpenCV, T_OpenCV))
+    return RT_OpenCV
