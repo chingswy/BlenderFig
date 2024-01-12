@@ -24,7 +24,6 @@ def create_plane_for_animation():
 def create_animation_example():
     bpy.context.scene.gravity[0] = -5
     bpy.context.scene.gravity[2] = -5
-    create_plane_for_animation()
     # 创建球体
     N = 3
     for i in range(N):
@@ -53,5 +52,5 @@ if __name__ == '__main__':
     setup()
     set_camera(location=(3, 0, 2.5), center=(0, 0, 1), focal=30)
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., 3.14/12, 0))
-
+    create_plane_for_animation()
     create_animation_example()

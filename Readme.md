@@ -49,3 +49,10 @@ ${blender} --background -noaudio --python examples/render_skel.py -- assets/thum
 ${blender} -noaudio --python examples/render_skel_gt_pred.py -- assets/s04_Hug1_000085.jpg.json
 ${blender} -noaudio --background --python examples/render_skel_gt_pred.py -- assets/field/s04_Hug\ 1_000070.jpg.json --no_pred --ground --grid assets/field/s04_Hug\ 1_000070_root.txt --out output/render_field.png --format PNG
 ```
+
+
+## render animation example
+
+```bash
+${blender} -noaudio --python examples/animation/animate_ball.py
+```
