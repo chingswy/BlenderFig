@@ -2,13 +2,23 @@
 
 ## install
 
+First you should install blender and find the path to the blender executable.
+
 ```bash
 <path_to_blender>/2.93/python/bin/python3.9 -m ensurepip --upgrade
-<path_to_blender>/2.93/python/bin/python3.9 setup.py develop
+<path_to_blender>/2.93/python/bin/python3.9 -m pip install PyYaml ipdb opencv-python tqdm
 # For example, in my MacOS:
 /Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m -m ensurepip --upgrade
 /Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m setup.py develop
-/Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m install PyYaml ipdb
+/Applications/Blender.app/Contents/Resources/2.82/python/bin/python3.7m -m pip install PyYaml ipdb opencv-python tqdm
+```
+
+And clone this repo and install it:
+
+```bash
+git clone https://github.com/chingswy/BlenderFig.git
+cd BlenderFig
+<path_to_blender>/2.93/python/bin/python3.9 setup.py develop
 ```
 
 ## render_example.py
