@@ -1,4 +1,6 @@
 import bpy
+import random
+random.seed(0)
 from myblender.geometry import (
     set_camera,
     build_plane
@@ -12,6 +14,7 @@ from myblender.setup import (
     set_output_properties,
     setup,
 )
+from myblender.geometry import add_material_to_blender_primitive
 
 def create_plane_for_animation():
     # 创建平面
@@ -22,7 +25,7 @@ def create_plane_for_animation():
     plane.rigid_body.restitution = 0.3  # (X, Y, Z)
 
 def create_animation_example():
-    bpy.context.scene.gravity[0] = -5
+    bpy.context.scene.gravity[0] = -2
     bpy.context.scene.gravity[2] = -5
     # 创建球体
     N = 3
@@ -30,8 +33,10 @@ def create_animation_example():
         for j in range(N):
             for k in range(N):
                 print(i, j, k)
+                color = (random.random(), random.random(), random.random())
                 bpy.ops.mesh.primitive_uv_sphere_add(radius=1/N/3, location=(i/N, j/N, 5 + k/N))
                 sphere = bpy.context.object
+                add_material_to_blender_primitive(sphere, color)
                 # 设置刚体物理
                 bpy.ops.rigidbody.object_add({'object': sphere})
                 sphere.rigid_body.type = 'ACTIVE'
