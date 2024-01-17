@@ -108,9 +108,13 @@ def Rodrigues(rotvec):
     theta = np.linalg.norm(rotvec)
     r = (rotvec/theta).reshape(3, 1) if theta > 0. else rotvec
     cost = np.cos(theta)
-    mat = np.asarray([[0, -r[2], r[1]],
-                      [r[2], 0, -r[0]],
-                      [-r[1], r[0], 0]])
+    mat = np.zeros((3, 3))
+    mat[0, 1] = -r[2]
+    mat[0, 2] = r[1]
+    mat[1, 0] = r[2]
+    mat[1, 2] = -r[0]
+    mat[2, 0] = -r[1]
+    mat[2, 1] = r[0]
     return(cost*np.eye(3) + (1-cost)*r.dot(r.T) + np.sin(theta)*mat)
 
 def animate_by_smpl(param, bones, frame, retarget=True,offset=[0,0,0]):
@@ -134,19 +138,54 @@ def animate_by_smpl(param, bones, frame, retarget=True,offset=[0,0,0]):
     bones[root_name].keyframe_insert('rotation_quaternion', frame=frame)
     for i in range(1, len(MAP_SMPL_XBOT)):
         rvec = np.array(param['poses'][0][3*i-3:3*i])
+        bone_rotation = Rodrigues(rvec)
         if retarget:
             bone_name = MAP_SMPL_XBOT[i]
-            if bone_name in ['mixamorig:LeftUpLeg', 'mixamorig:RightUpLeg', 'mixamorig:LeftLeg', 'mixamorig:RightLeg', 'mixamorig:LeftFoot', 'mixamorig:RightFoot', 'mixamorig:LeftToeBase', 'mixamorig:RightToeBase']:
+            if bone_name in ['mixamorig:LeftUpLeg', 'mixamorig:RightUpLeg', \
+                             'mixamorig:LeftLeg', 'mixamorig:RightLeg']:
+                base = np.array([
+                    [1, 0, 0],
+                    [0, -1, 0],
+                    [0, 0, -1]
+                ])
+                bone_rotation = base @ bone_rotation
                 rvec[1] *= -1
                 rvec[2] *= -1
-            if bone_name in ['mixamorig:RightShoulder', 'mixamorig:RightArm', 'mixamorig:RightForeArm', 'mixamorig:RightHand']:
-                rvec[[0,1]] = rvec[[1,0]]
-            if bone_name in ['mixamorig:LeftShoulder', 'mixamorig:LeftArm', 'mixamorig:LeftForeArm', 'mixamorig:LeftHand']:
+                bone_rotation = Rodrigues(rvec)
+            elif bone_name in ['mixamorig:LeftFoot', 'mixamorig:RightFoot', 'mixamorig:LeftToeBase', 'mixamorig:RightToeBase']:
+                # [1, 0, 0], [0, 0, -1], [0, 1, 0]
+                base = np.array([
+                    [1, 0, 0],
+                    [0, 0, -1],
+                    [0, 1, 0]])
+                bone_rotation = base @ bone_rotation
+                rvec[[1, 2]] = rvec[[2, 1]]
+                rvec[1] *= -1
+                bone_rotation = Rodrigues(rvec)
+            elif bone_name in ['mixamorig:LeftShoulder', 'mixamorig:LeftArm', 'mixamorig:LeftForeArm', 'mixamorig:LeftHand']:
+                # [0, 1, 0], [1, 0, 0], [0, 0, -1]
+                base = np.array([
+                    [0, 1, 0],
+                    [1, 0, 0],
+                    [0, 0, -1]])
+                bone_rotation = base @ bone_rotation
                 rvec[[0,1]] = rvec[[1,0]]
                 rvec[2] *= -1
+                bone_rotation = Rodrigues(rvec)
+            elif bone_name in ['mixamorig:RightShoulder', 'mixamorig:RightArm', 'mixamorig:RightForeArm', 'mixamorig:RightHand']:
+                # [0, -1, 0], [1, 0, 0], [0, 0, 1]
+                base = np.array([
+                    [0, -1, 0],
+                    [1, 0, 0],
+                    [0, 0, 1]])
+                bone_rotation = base @ bone_rotation
+                # flag
+                rvec[[0,1]] = rvec[[1,0]]
+                rvec[1] *= -1
+                bone_rotation = Rodrigues(rvec)
         else:
             bone_name = list(bones.keys())[i]
-        bone_rotation = Rodrigues(rvec)
         bone_rotation = Matrix(bone_rotation).to_quaternion()
         bones[bone_name].rotation_quaternion = bone_rotation
         bones[bone_name].keyframe_insert('rotation_quaternion', frame=frame)
+    
