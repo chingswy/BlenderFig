@@ -347,3 +347,70 @@ def load_humanmesh(filename, pid, meshColor=None, translation=None, rotation=Non
     # mat = bpy.data.materials[matname]
     # set_material_i(mat, pid)
     return obj
+
+
+def load_smpl_npz(filename, default_rotation=(0., 0., 0.)):
+    keys_old = set(bpy.data.objects.keys())
+    mat_old = set(bpy.data.materials.keys())
+    image_old = set(bpy.data.images.keys())
+    if filename.endswith('.npz'):
+        bpy.ops.object.smplx_add_animation(filepath=filename)
+        # bpy.ops.import_scene.obj(filepath=filename, axis_forward='X', axis_up='Z')
+    keys_new = set(bpy.data.objects.keys())
+    mat_new = set(bpy.data.materials.keys())
+    image_new = set(bpy.data.images.keys())
+    key = list(keys_new - keys_old)[0]
+    current_obj = bpy.data.objects[key]
+    # set default rotation to 0.
+    current_obj.rotation_euler = default_rotation
+    key_image = list(image_new-image_old)
+    if len(key_image) > 0:
+        print('>>> Loading image {}'.format(key_image[0]))
+        key = (key, key_image[0])
+    mat = list(mat_new - mat_old)[0]
+    # Select the mesh object instead of the armature
+    smplx_obj = current_obj
+
+    if "Body" in bpy.data.objects:
+        smplx_obj = bpy.data.objects["Body"]
+    else:
+        # Find the mesh object that's a child of the armature
+        for obj in bpy.data.objects:
+            if obj.parent == smplx_obj and obj.type == 'MESH':
+                smplx_obj = obj
+                break
+
+    return smplx_obj, key, mat
+
+def export_smpl_npz_to_fbx(filename):
+    # Select all objects in the scene
+    bpy.ops.object.select_all(action='DESELECT')
+    
+    # Find and select only armature objects
+    for obj in bpy.data.objects:
+        if obj.type == 'ARMATURE':
+            obj.select_set(True)
+            # Also make this the active object
+            bpy.context.view_layer.objects.active = obj
+            print(f"Selected armature object: {obj.name}")
+        elif obj.type == 'MESH' and 'SMPL' in obj.name:
+            obj.select_set(True)
+            print(f"Selected mesh object: {obj.name}")
+    # Create output filename by replacing .npz with .fbx
+    output_filename = filename.replace('.npz', '.fbx')
+    output_filepath = output_filename
+    
+    # Select only the SMPLX object for export
+    
+    # bpy.ops.object.select_all(action='DESELECT')
+    # smplx_obj.select_set(True)
+    # print(smplx_obj.type)
+    # breakpoint()
+    # Export only the animation data of the SMPLX object as FBX
+    bpy.ops.export_scene.fbx(
+        filepath=output_filepath,
+        check_existing=False,
+        use_selection=True,
+        bake_anim=True,
+        path_mode='RELATIVE'
+    )
