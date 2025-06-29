@@ -1,7 +1,7 @@
 import os
 import bpy
 
-def setup_video_in_3d(video_path):
+def setup_video_in_3d(video_path, down=1):
     # 清理场景    
     # 获取视频信息
     assert os.path.exists(video_path), f"视频文件不存在: {video_path}"
@@ -10,6 +10,10 @@ def setup_video_in_3d(video_path):
     video_clip = bpy.data.movieclips.load(video_path)
     total_frames = video_clip.frame_duration
     width, height = video_clip.size
+    print()
+    if down > 1:
+        width = width // down
+        height = height // down
     fps = video_clip.fps
     # 创建平面并匹配视频比例
     bpy.ops.mesh.primitive_plane_add(size=2)

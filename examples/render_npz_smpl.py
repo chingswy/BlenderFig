@@ -33,6 +33,7 @@ if __name__ == '__main__':
 
     parser = get_parser()
     parser.add_argument('--video', type=str, default=None)
+    parser.add_argument('--down', type=int, default=1)
     args = parse_args(parser)
 
     setup()
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     # Import the SMPLX animation
     smplx_name = args.path
     
-    width, height, fps = setup_video_in_3d(args.video)
+    width, height, fps = setup_video_in_3d(args.video, down=args.down)
     smplx_obj, key, mat = load_smpl_npz(smplx_name, default_rotation=(0., 0., 0.))
     export_smpl_npz_to_fbx(smplx_name)
 
