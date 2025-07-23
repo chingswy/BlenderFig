@@ -30,15 +30,28 @@ from myblender.camera import set_extrinsic, set_intrinsic
 
 def depth_to_xyz(depth, K, cam_c2w):
     H, W = depth.shape
-    x, y = np.meshgrid(np.arange(W), np.arange(H))
-    x = (x - K[0, 2]) / K[0, 0]
-    y = (y - K[1, 2]) / K[1, 1]
-    xyz = np.stack([x, y, depth], axis=-1)
-    xyz = xyz.reshape(-1, 3)
-    xyz1 = np.concatenate([xyz, np.ones((xyz.shape[0], 1))], axis=-1)
-    xyz1 = cam_c2w @ xyz1.T
-    xyz1 = xyz1.T
-    return xyz1[:, :3]
+    u = np.arange(W)
+    v = np.arange(H)
+    uu, vv = np.meshgrid(u, v, indexing='xy')  # 像素坐标网格 (H, W)
+    
+    # 计算归一化相机坐标 (乘以深度前)
+    x_norm = (uu - K[0, 2]) / K[0, 0]  # x方向归一化坐标 (H, W)
+    y_norm = (vv - K[1, 2]) / K[1, 1]  # y方向归一化坐标 (H, W)
+    
+    # 直接构建4D齐次坐标数组 (H, W, 4)
+    # 前三维是相机坐标系下的点坐标，第四维是齐次坐标分量
+    points_cam = np.empty((H, W, 4), dtype=depth.dtype)
+    points_cam[..., 0] = x_norm  # X_cam = x_norm * Z_cam
+    points_cam[..., 1] = y_norm  # Y_cam = y_norm * Z_cam
+    points_cam[..., 2] = depth           # Z_cam
+    points_cam[..., 3] = 1.0             # 齐次分量
+    
+    # 转换到世界坐标系 (同时处理所有点)
+    points_cam_flat = points_cam.reshape(-1, 4).T  # 转为(4, H*W)
+    points_world_flat = cam_c2w @ points_cam_flat  # (4, H*W)
+    points_world = points_world_flat.T.reshape(-1, 4)  # 转置并转为(H*W, 4)
+    
+    return points_world[:, :3]  # 返回XYZ世界坐标 (N, 3)
 
 def set_ply_color(basename, radius=0.005):
     obj = bpy.data.objects[basename]
@@ -88,6 +101,7 @@ def set_ply_color(basename, radius=0.005):
 
 if __name__ == '__main__':
     parser = get_parser()
+    parser.add_argument('--vis_all', action='store_true')
     args = parse_args(parser)
 
     setup()
@@ -141,23 +155,24 @@ if __name__ == '__main__':
         
         # 设置点云只在当前帧可见
         # 默认在所有帧都不可见
-        point_cloud_obj.hide_render = True
-        point_cloud_obj.hide_viewport = True
-        point_cloud_obj.keyframe_insert('hide_render', frame=0)
-        point_cloud_obj.keyframe_insert('hide_viewport', frame=0)
-        
-        # 在当前帧设置为可见
-        current_frame = i + 1
-        point_cloud_obj.hide_render = False
-        point_cloud_obj.hide_viewport = False
-        point_cloud_obj.keyframe_insert('hide_render', frame=current_frame)
-        point_cloud_obj.keyframe_insert('hide_viewport', frame=current_frame)
-        
-        # 在下一帧设置为不可见
-        point_cloud_obj.hide_render = True
-        point_cloud_obj.hide_viewport = True
-        point_cloud_obj.keyframe_insert('hide_render', frame=current_frame + 1)
-        point_cloud_obj.keyframe_insert('hide_viewport', frame=current_frame + 1)
+        if not args.vis_all:
+            point_cloud_obj.hide_render = True
+            point_cloud_obj.hide_viewport = True
+            point_cloud_obj.keyframe_insert('hide_render', frame=0)
+            point_cloud_obj.keyframe_insert('hide_viewport', frame=0)
+            
+            # 在当前帧设置为可见
+            current_frame = i + 1
+            point_cloud_obj.hide_render = False
+            point_cloud_obj.hide_viewport = False
+            point_cloud_obj.keyframe_insert('hide_render', frame=current_frame)
+            point_cloud_obj.keyframe_insert('hide_viewport', frame=current_frame)
+            
+            # 在下一帧设置为不可见
+            point_cloud_obj.hide_render = True
+            point_cloud_obj.hide_viewport = True
+            point_cloud_obj.keyframe_insert('hide_render', frame=current_frame + 1)
+            point_cloud_obj.keyframe_insert('hide_viewport', frame=current_frame + 1)
 
     # create_plane(vid=0, radius=2, center=(-3, 0))
     # create_points(vid=1, center=(0,-1, 1), alpha=0.5)
