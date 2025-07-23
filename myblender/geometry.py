@@ -177,7 +177,7 @@ def create_image_RT(imgname, R=np.eye(3), T=np.zeros((3, 1))):
     image_mesh.location = (center[0, 0], center[1, 0], center[2, 0])
 
 def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
-    location=None, rotation=None):
+    location=None, rotation=None, frame=None):
     camera = bpy.data.objects['Camera']
     # theta = np.pi / 8
     if location is None:
@@ -189,9 +189,13 @@ def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
         look_at(camera, Vector(center))
     else:
         camera.rotation_euler = Euler(rotation, 'XYZ')
-    print(camera.location)
-    print(camera.rotation_euler)
+    print(f'Set camera.location: {camera.location}')
+    print(f'Set camera.rotation_euler: {camera.rotation_euler}')
     camera.data.lens = focal
+    if frame is not None:
+        print(f"Added keyframe at frame {frame} for camera position and rotation")
+        camera.keyframe_insert(data_path="location", frame=frame)
+        camera.keyframe_insert(data_path="rotation_euler", frame=frame)
     return camera
 
 def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.) -> None:

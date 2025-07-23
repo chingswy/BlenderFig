@@ -91,6 +91,29 @@ def calculate_mesh_center(mesh_object):
     mesh_center = sum_co / len(vertices) if len(vertices) > 0 else Vector((0, 0, 0))
     return mesh_center
 
+def find_armature_and_mesh(obj_names):
+    # Find the armature (assuming it's the first object or has animation data)
+    armature = None
+    mesh_object = None
+    for obj_name in obj_names:
+        obj = bpy.data.objects[obj_name]
+        print(obj_name, obj.type)
+        if obj.type == 'ARMATURE' or (obj.animation_data and obj.animation_data.action):
+            armature = obj
+        if obj.type == 'MESH':
+            mesh_object = obj
+    
+    return armature, mesh_object
+
+def find_center_of_mesh(mesh_object):
+    world_bound_box = [mesh_object.matrix_world @ Vector(corner) for corner in mesh_object.bound_box]
+    min_x, min_y, min_z = world_bound_box[0]
+    max_x, max_y, max_z = world_bound_box[6]
+    center_x = (min_x + max_x) / 2
+    center_y = (min_y + max_y) / 2
+    center_z = (min_z + max_z) / 2
+    return center_x, center_y, center_z
+
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
@@ -120,66 +143,31 @@ if __name__ == '__main__':
     # Get the imported objects
     obj_names = [o.name for o in bpy.context.selected_objects]
     
-    # Find the armature (assuming it's the first object or has animation data)
-    armature = None
-    mesh_object = None
-    for obj_name in obj_names:
-        obj = bpy.data.objects[obj_name]
-        print(obj_name, obj.type)
-        if obj.type == 'ARMATURE' or (obj.animation_data and obj.animation_data.action):
-            armature = obj
-        if obj.type == 'MESH':
-            mesh_object = obj
+    armature, mesh_object = find_armature_and_mesh(obj_names)
     
     set_scene_frame_range(armature)
     base_location = (0, -3, 0.5)
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
+    center = find_center_of_mesh(mesh_object)
 
-    world_bound_box = [mesh_object.matrix_world @ Vector(corner) for corner in mesh_object.bound_box]
-    min_x, min_y, min_z = world_bound_box[0]
-    max_x, max_y, max_z = world_bound_box[6]
-    center_x = (min_x + max_x) / 2
-    center_y = (min_y + max_y) / 2
-    center_z = (min_z + max_z) / 2
-    print(center_x, center_y, center_z)
     set_camera(
-        location=(base_location[0] + center_x, base_location[1] + center_y, base_location[2] + center_z), 
-        center=(center_x, center_y, center_z), focal=30)
+        location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
+        center=(center[0], center[1], center[2]), focal=30, frame=bpy.context.scene.frame_start)
     # Add keyframe for camera position and rotation at the first frame
     bpy.context.scene.frame_set(bpy.context.scene.frame_start)
-    camera = bpy.data.objects['Camera']
-    camera.keyframe_insert(data_path="location", frame=bpy.context.scene.frame_start)
-    camera.keyframe_insert(data_path="rotation_euler", frame=bpy.context.scene.frame_start)
     
-    print(f"Added keyframe at frame {bpy.context.scene.frame_start} for camera position and rotation")
     # Switch to the last frame to calculate center at the end of animation
-    if armature and armature.animation_data and armature.animation_data.action:
-        # Get the last frame from the animation
-        last_frame = bpy.context.scene.frame_end
-        
-        # Set the current frame to the last frame
-        bpy.context.scene.frame_set(last_frame)
-        
-        
-        # Recalculate the bounding box and center at the last frame
-        world_bound_box_last = [mesh_object.matrix_world @ Vector(corner) for corner in mesh_object.bound_box]
-        min_x_last, min_y_last, min_z_last = world_bound_box_last[0]
-        max_x_last, max_y_last, max_z_last = world_bound_box_last[6]
-        center_x_last = (min_x_last + max_x_last) / 2
-        center_y_last = (min_y_last + max_y_last) / 2
-        center_z_last = (min_z_last + max_z_last) / 2
-        
-        print(f"Last frame center: {center_x_last}, {center_y_last}, {center_z_last}")
-        
-        # Update camera to look at the last frame position
-        set_camera(
-            location=(base_location[0] + center_x_last, base_location[1] + center_y_last, base_location[2] + center_z_last), 
-            center=(center_x_last, center_y_last, center_z_last), focal=30)
-        # Add keyframe for camera position and rotation at the last frame
-        camera.keyframe_insert(data_path="location", frame=last_frame)
-        camera.keyframe_insert(data_path="rotation_euler", frame=last_frame)
+    # Get the last frame from the animation
+    last_frame = bpy.context.scene.frame_end
     
-        print(f"Added keyframe at frame {last_frame} for camera position and rotation")
+    # Set the current frame to the last frame
+    bpy.context.scene.frame_set(last_frame)
+    
+    center = find_center_of_mesh(mesh_object)
+    # Update camera to look at the last frame position
+    set_camera(
+        location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
+        center=(center[0], center[1], center[2]), focal=30, frame=last_frame)
     
     # Set interpolation type to make camera movement smoother
     # for fcurve in camera.animation_data.action.fcurves:
@@ -191,7 +179,6 @@ if __name__ == '__main__':
         meshColor = colorObj((153/255.,  216/255.,  201/255., 1.), 0.5, 1.0, 1.0, 0.0, 2.0)
         setMat_plastic(mesh_object, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
     
-
     set_output_properties(bpy.context.scene, output_file_path='./output_eevee/', 
         res_x=1024, res_y=1024, 
         tile_x=1024, tile_y=1024, 
