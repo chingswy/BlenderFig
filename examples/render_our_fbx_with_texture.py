@@ -173,9 +173,10 @@ if __name__ == '__main__':
     armature, mesh_object, mesh_object_list = find_armature_and_mesh(obj_names)
     
     set_scene_frame_range(armature)
+    base_distance = 2.
     # base_location = (3, 0, 0.5)
-    base_location = (0, -3, 0.5)
-    base_location_side = (-3, 0, 0.5)
+    base_location = (0, -base_distance, 0.5)
+    base_location_side = (-base_distance, 0, 0.5)
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
     center = find_center_of_mesh(mesh_object)
     side_camera = bpy.data.cameras.new(name="SideCamera")
@@ -213,17 +214,18 @@ if __name__ == '__main__':
     set_cycles_renderer(
         bpy.context.scene,
         bpy.data.objects["Camera"],
-        num_samples=64,
+        num_samples=args.num_samples,
         use_transparent_bg=False,
         use_denoising=True,
     )
     set_output_properties(bpy.context.scene, output_file_path=args.out, 
-        res_x=1024, res_y=1024, 
-        tile_x=1024, tile_y=1024, 
+        res_x=args.res_x, res_y=args.res_y, 
+        tile_x=args.res_x, tile_y=args.res_y, 
         resolution_percentage=100,
         format='FFMPEG',
     )
-    bpy.ops.render.render(animation=True)
+    if not args.debug:
+        bpy.ops.render.render(animation=True)
 
     if args.add_sideview:
         sideview_name = os.path.join(
@@ -233,14 +235,15 @@ if __name__ == '__main__':
         set_cycles_renderer(
             bpy.context.scene,
             bpy.data.objects["SideCamera"],
-            num_samples=64,
+            num_samples=args.num_samples,
             use_transparent_bg=False,
             use_denoising=True,
         )
         set_output_properties(bpy.context.scene, output_file_path=sideview_name, 
-            res_x=1024, res_y=1024, 
-            tile_x=1024, tile_y=1024, 
+            res_x=args.res_x, res_y=args.res_y, 
+            tile_x=args.res_x, tile_y=args.res_y, 
             resolution_percentage=100,
             format='FFMPEG',
         )
-        bpy.ops.render.render(animation=True)
+        if not args.debug:
+            bpy.ops.render.render(animation=True)
