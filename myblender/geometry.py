@@ -177,8 +177,10 @@ def create_image_RT(imgname, R=np.eye(3), T=np.zeros((3, 1))):
     image_mesh.location = (center[0, 0], center[1, 0], center[2, 0])
 
 def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
-    location=None, rotation=None, frame=None):
-    camera = bpy.data.objects['Camera']
+    location=None, rotation=None, frame=None,
+    camera=None):
+    if camera is None:
+        camera = bpy.data.objects['Camera']
     # theta = np.pi / 8
     if location is None:
         theta = 0.

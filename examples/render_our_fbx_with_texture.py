@@ -142,6 +142,7 @@ def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
+    parser.add_argument('--add_sideview', action='store_true')
     args = parse_args(parser)
 
     setup()
@@ -151,14 +152,7 @@ if __name__ == '__main__':
 
     # setHDREnv(fn='../DCC_Scripts/blender/Zbyg-Studio_0018_1k_m.hdr', strength=1.0)
     setLight_ambient(color=(0.6,0.6,0.6,1))
-    scene = set_eevee_renderer()
-    set_cycles_renderer(
-        bpy.context.scene,
-        bpy.data.objects["Camera"],
-        num_samples=64,
-        use_transparent_bg=False,
-        use_denoising=True,
-    )
+    # scene = set_eevee_renderer()
 
     # build_plane(translation=(0, 0, 0), plane_size=20)
     ground_mesh = addGround(
@@ -181,32 +175,30 @@ if __name__ == '__main__':
     set_scene_frame_range(armature)
     # base_location = (3, 0, 0.5)
     base_location = (0, -3, 0.5)
+    base_location_side = (-3, 0, 0.5)
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
     center = find_center_of_mesh(mesh_object)
+    side_camera = bpy.data.cameras.new(name="SideCamera")
+    side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
+    bpy.context.collection.objects.link(side_camera_obj)
 
-    set_camera(
-        location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
-        center=(center[0], center[1], center[2]), focal=30, frame=bpy.context.scene.frame_start)
-    # Add keyframe for camera position and rotation at the first frame
-    bpy.context.scene.frame_set(bpy.context.scene.frame_start)
-    
-    # Switch to the last frame to calculate center at the end of animation
-    # Get the last frame from the animation
-    last_frame = bpy.context.scene.frame_end
-    
-    # Set the current frame to the last frame
-    bpy.context.scene.frame_set(last_frame)
-    
-    center = find_center_of_mesh(mesh_object)
-    # Update camera to look at the last frame position
-    set_camera(
-        location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
-        center=(center[0], center[1], center[2]), focal=30, frame=last_frame)
-    
-    # Set interpolation type to make camera movement smoother
-    # for fcurve in camera.animation_data.action.fcurves:
-    #     for kf in fcurve.keyframe_points:
-    #         kf.interpolation = 'BEZIER'
+    for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30):    
+        # Set the current frame to the last frame
+        bpy.context.scene.frame_set(frame)
+        
+        center = find_center_of_mesh(mesh_object)
+        # Update camera to look at the last frame position
+        set_camera(
+            location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
+            center=(center[0], center[1], center[2]), focal=30, frame=frame,
+            camera=bpy.data.objects["Camera"],
+        )
+        if args.add_sideview:
+            set_camera(
+                location=(base_location_side[0] + center[0], base_location_side[1] + center[1], base_location_side[2] + center[2]), 
+                center=(center[0], center[1], center[2]), focal=30, frame=frame,
+                camera=bpy.data.objects["SideCamera"],
+            )
 
     # Apply material to the mesh object, not the armature
     if mesh_object:
@@ -217,6 +209,14 @@ if __name__ == '__main__':
             else:
                 set_texture_map(mesh_obj_)
     
+    # First render with the main camera
+    set_cycles_renderer(
+        bpy.context.scene,
+        bpy.data.objects["Camera"],
+        num_samples=64,
+        use_transparent_bg=False,
+        use_denoising=True,
+    )
     set_output_properties(bpy.context.scene, output_file_path=args.out, 
         res_x=1024, res_y=1024, 
         tile_x=1024, tile_y=1024, 
@@ -224,3 +224,23 @@ if __name__ == '__main__':
         format='FFMPEG',
     )
     bpy.ops.render.render(animation=True)
+
+    if args.add_sideview:
+        sideview_name = os.path.join(
+            os.path.dirname(args.out),
+            os.path.basename(args.out).split('.')[0] + '-side.mp4'
+        )
+        set_cycles_renderer(
+            bpy.context.scene,
+            bpy.data.objects["SideCamera"],
+            num_samples=64,
+            use_transparent_bg=False,
+            use_denoising=True,
+        )
+        set_output_properties(bpy.context.scene, output_file_path=sideview_name, 
+            res_x=1024, res_y=1024, 
+            tile_x=1024, tile_y=1024, 
+            resolution_percentage=100,
+            format='FFMPEG',
+        )
+        bpy.ops.render.render(animation=True)
