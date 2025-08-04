@@ -15,8 +15,9 @@ from myblender.setup import (
 from myblender.geometry import (
     set_camera,
     build_plane,
+    addGround,
 )
-from myblender.material import colorObj, setMat_plastic
+from myblender.material import colorObj, setMat_plastic, setHDREnv
 
 
 def set_scene_frame_range(armature):
@@ -117,28 +118,57 @@ def find_center_of_mesh(mesh_object):
     center_z = (min_z + max_z) / 2
     return center_x, center_y, center_z
 
+def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):            # 创建材质
+    if True:
+        material = bpy.data.materials.new(name="Custom_Texture")
+        material.use_nodes = True
+        bsdf = material.node_tree.nodes["Principled BSDF"]
+
+        # 加载纹理
+        texture_image = bpy.data.images.load(body_texture)  # 纹理文件路径
+        tex_image = material.node_tree.nodes.new("ShaderNodeTexImage")
+        tex_image.image = texture_image
+
+        # 连接纹理到材质
+        material.node_tree.links.new(bsdf.inputs["Base Color"], tex_image.outputs["Color"])
+
+        # 应用材质到模型
+        if mesh_obj.data.materials:
+            mesh_obj.data.materials[0] = material
+        else:
+            mesh_obj.data.materials.append(material)
+    return material
+
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
-    parser.add_argument('--path', type=str, default=None)
     args = parse_args(parser)
 
     setup()
     add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0), strength=2.0)
-    
 
-    set_world_background()
-    # setLight_ambient(color=(0.1,0.1,0.1,1))
+    # set_world_background()
+
+    # setHDREnv(fn='../DCC_Scripts/blender/Zbyg-Studio_0018_1k_m.hdr', strength=1.0)
+    setLight_ambient(color=(0.6,0.6,0.6,1))
     scene = set_eevee_renderer()
-    # set_cycles_renderer(
-    #     bpy.context.scene,
-    #     bpy.data.objects["Camera"],
-    #     num_samples=64,
-    #     use_transparent_bg=False,
-    #     use_denoising=True,
-    # )
+    set_cycles_renderer(
+        bpy.context.scene,
+        bpy.data.objects["Camera"],
+        num_samples=64,
+        use_transparent_bg=False,
+        use_denoising=True,
+    )
 
-    build_plane(translation=(0, 0, 0), plane_size=20)
+    # build_plane(translation=(0, 0, 0), plane_size=20)
+    ground_mesh = addGround(
+        location=(0, 0, 0),
+        groundSize=20,
+        shadowBrightness=0.1,
+        normal_axis="z",
+        alpha=1,
+        tex_fn=os.path.join('assets', 'cyclesProceduralWoodFloor.png'),
+    )
 
     fbx_path = args.path
     assert os.path.exists(fbx_path), fbx_path
@@ -149,6 +179,7 @@ if __name__ == '__main__':
     armature, mesh_object, mesh_object_list = find_armature_and_mesh(obj_names)
     
     set_scene_frame_range(armature)
+    # base_location = (3, 0, 0.5)
     base_location = (0, -3, 0.5)
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
     center = find_center_of_mesh(mesh_object)
@@ -180,13 +211,16 @@ if __name__ == '__main__':
     # Apply material to the mesh object, not the armature
     if mesh_object:
         for mesh_obj_ in mesh_object_list:
-            meshColor = colorObj((153/255.,  216/255.,  201/255., 1.), 0.5, 1.0, 1.0, 0.0, 2.0)
-            setMat_plastic(mesh_obj_, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
+            if False:
+                meshColor = colorObj((153/255.,  216/255.,  201/255., 1.), 0.5, 1.0, 1.0, 0.0, 2.0)
+                setMat_plastic(mesh_obj_, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
+            else:
+                set_texture_map(mesh_obj_)
     
-    set_output_properties(bpy.context.scene, output_file_path='./output_eevee_ue/', 
+    set_output_properties(bpy.context.scene, output_file_path=args.out, 
         res_x=1024, res_y=1024, 
         tile_x=1024, tile_y=1024, 
         resolution_percentage=100,
-        format='JPEG'
+        format='FFMPEG',
     )
     bpy.ops.render.render(animation=True)

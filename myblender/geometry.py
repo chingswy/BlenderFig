@@ -418,3 +418,80 @@ def export_smpl_npz_to_fbx(filename):
         bake_anim=True,
         path_mode='RELATIVE'
     )
+
+def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_axis="Z", tex_fn=None, alpha=0.5):
+    # initialize a ground for shadow
+    bpy.context.scene.cycles.film_transparent = True
+    if normal_axis.upper() == "Z":
+        bpy.ops.mesh.primitive_plane_add(location=location, size=groundSize, rotation=(0, 0, 0))
+    elif normal_axis.upper() == "Y":
+        bpy.ops.mesh.primitive_plane_add(location=location, size=groundSize, rotation=(math.radians(90), 0, 0))
+    elif normal_axis.upper() == "X":
+        bpy.ops.mesh.primitive_plane_add(location=location, size=groundSize, rotation=(0, math.radians(90), 0))
+    else:
+        raise ValueError
+
+    # pdb.set_trace()
+    # NOTE not working, weird
+    # if normal_axis.lower() == "Y":
+    #     ground.rotation_euler[0] = math.radians(90)
+    # elif normal_axis.lower() == 'X':
+    #     ground.rotation_euler[1] = math.radians(90)
+    ground = bpy.context.object
+    ground.name = "ground"
+
+    try:
+        ground.is_shadow_catcher = False  # for blender 3.X
+    except:
+        ground.cycles.is_shadow_catcher = False  # for blender 2.X
+
+    # set material
+    checker_mat = bpy.data.materials.new("CheckerboardMaterial")
+    checker_mat.use_nodes = True
+    checker_mat.blend_method = "BLEND"  # 启用透明混合
+    checker_mat.shadow_method = "HASHED"  # 优化阴影表现
+    ground.data.materials.append(checker_mat)
+    ground.active_material = checker_mat
+    tree = checker_mat.node_tree
+
+    # 移除默认节点
+    for node in list(tree.nodes):
+        if node.name != "Material Output":
+            tree.nodes.remove(node)
+
+    # 添加纹理坐标节点
+    texcoord_node = tree.nodes.new("ShaderNodeTexCoord")
+
+    # 添加Mapping节点用于平铺纹理
+    mapping_node = tree.nodes.new("ShaderNodeMapping")
+    mapping_node.inputs["Scale"].default_value = (groundSize, groundSize, groundSize)
+    tree.links.new(texcoord_node.outputs["UV"], mapping_node.inputs["Vector"])
+
+    if tex_fn is None:
+        # 使用棋盘格纹理
+        checker_node = tree.nodes.new("ShaderNodeTexChecker")
+        checker_node.inputs["Scale"].default_value = 1.0  # 1 square per meter
+        checker_node.inputs["Color1"].default_value = (1, 1, 1, 1)  # 纯白
+        checker_node.inputs["Color2"].default_value = (0, 0, 0, 1)  # 纯黑
+        tree.links.new(mapping_node.outputs["Vector"], checker_node.inputs["Vector"])
+        texture_output = checker_node.outputs["Color"]
+    else:
+        # 加载外部图片纹理
+        assert os.path.isfile(tex_fn), f"Texture file not found: {tex_fn}"
+        image_node = tree.nodes.new("ShaderNodeTexImage")
+        image_node.image = bpy.data.images.load(tex_fn)
+        image_node.image.alpha_mode = "STRAIGHT"  # 保留alpha通道
+        image_node.extension = "REPEAT"  # 设置平铺模式
+        tree.links.new(mapping_node.outputs["Vector"], image_node.inputs["Vector"])
+        texture_output = image_node.outputs["Color"]
+
+    # 添加Principled BSDF节点
+    bsdf_node = tree.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf_node.inputs["Roughness"].default_value = 1
+    bsdf_node.inputs["Alpha"].default_value = alpha  # 设置透明度
+
+    # 连接节点
+    tree.links.new(texture_output, bsdf_node.inputs["Base Color"])
+    tree.links.new(bsdf_node.outputs["BSDF"], tree.nodes["Material Output"].inputs["Surface"])
+
+    return ground

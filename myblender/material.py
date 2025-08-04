@@ -6,6 +6,7 @@
   @ LastEditTime: 2022-08-31 11:48:52
   @ FilePath: /EasyMocapPublic/easymocap/blender/material.py
 '''
+import os
 import bpy
 
 hex2rgb = lambda x:list(map(lambda v:int('0x'+v, 16)/255., [x[:2], x[2:4], x[4:]]))
@@ -215,3 +216,30 @@ def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plas
             metallic=metallic, specular=specular, roughness=roughness, **kwargs)
     else:
         setMat_plastic(mat, colorObj(color, B=0.3))
+
+def setHDREnv(fn, strength=1.0):
+    if fn is None:
+        return
+    assert os.path.isfile(fn)
+    scene = bpy.context.scene
+    # Get the environment node tree of the current scene
+    node_tree = scene.world.node_tree
+    tree_nodes = node_tree.nodes
+
+    # Clear all nodes
+    node_tree.nodes.clear()
+    # Add Background node
+    node_background = node_tree.nodes.new(type="ShaderNodeBackground")
+    node_background.inputs["Strength"].default_value = strength  # reduce env lighting
+    # Add Environment Texture node
+    node_environment = node_tree.nodes.new("ShaderNodeTexEnvironment")
+    # Load and assign the image to the node property
+    node_environment.image = bpy.data.images.load(fn)  # Relative path
+    node_environment.location = -300, 0
+    # Add Output node
+    node_output = node_tree.nodes.new(type="ShaderNodeOutputWorld")
+    node_output.location = 200, 0
+
+    # Link all nodes
+    node_tree.links.new(node_environment.outputs["Color"], node_background.inputs["Color"])
+    node_tree.links.new(node_background.outputs["Background"], node_output.inputs["Surface"])

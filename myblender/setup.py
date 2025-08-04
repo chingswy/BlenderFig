@@ -176,3 +176,11 @@ def set_output_properties(scene,
     elif format == 'JPEG':
         scene.render.image_settings.file_format = "JPEG"
         scene.render.image_settings.color_mode = "RGB"
+    elif format == 'FFMPEG':
+        scene.render.image_settings.file_format = "FFMPEG"
+        scene.render.image_settings.color_mode = "RGB"
+        scene.render.ffmpeg.format = "MPEG4"
+        scene.render.ffmpeg.codec = "H264"
+        # scene.render.ffmpeg.quality = 90
+    else:
+        raise ValueError(f"Unsupported format: {format}")
