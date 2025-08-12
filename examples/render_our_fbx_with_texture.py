@@ -118,6 +118,12 @@ def find_center_of_mesh(mesh_object):
     center_z = (min_z + max_z) / 2
     return (center_x, center_y, center_z), min_z
 
+def find_center_of_armature(armature):
+    root_bone = armature.pose.bones[1] # 1 是pelvis
+    world_matrix = armature.matrix_world @ root_bone.matrix
+    position = world_matrix.translation
+    return (position.x, position.y, position.z)
+
 def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):            # 创建材质
     if True:
         material = bpy.data.materials.new(name="Custom_Texture")
@@ -163,23 +169,37 @@ if __name__ == '__main__':
     armature, mesh_object, mesh_object_list = find_armature_and_mesh(obj_names)
 
     set_scene_frame_range(armature)
-    base_distance = 2.
+
+    look_at_mode = 'root' # 'root' or 'mesh'
     # base_location = (3, 0, 0.5)
-    base_location = (0, -base_distance, 0.5)
-    base_location_side = (-base_distance, 0, 0.5)
+    if look_at_mode == 'root':
+        base_distance = 2.5
+        base_location = (0, -base_distance, 0.5)
+        base_location_side = (-base_distance, 0, 0.5)
+    elif look_at_mode == 'mesh':
+        base_distance = 2.5
+        base_location = (0, -base_distance, 0.5)
+        base_location_side = (-base_distance, 0, 0.5)
+
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
-    center, min_z = find_center_of_mesh(mesh_object)
+    _, min_z = find_center_of_mesh(mesh_object)
+    center = find_center_of_armature(armature)
+
     side_camera = bpy.data.cameras.new(name="SideCamera")
     side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
     bpy.context.collection.objects.link(side_camera_obj)
 
     min_height = 0
 
-    for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 15)) + [bpy.context.scene.frame_end]:
+    for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30)) + [bpy.context.scene.frame_end]:
         # Set the current frame to the last frame
         bpy.context.scene.frame_set(frame)
 
-        center, min_z = find_center_of_mesh(mesh_object)
+        if look_at_mode == 'root':
+            center = find_center_of_armature(armature)
+        elif look_at_mode == 'mesh':
+            center, _ = find_center_of_mesh(mesh_object)
+        _, min_z = find_center_of_mesh(mesh_object)
         min_height = min(min_height, min_z)
         # Update camera to look at the last frame position
         set_camera(
