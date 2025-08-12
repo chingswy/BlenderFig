@@ -241,7 +241,8 @@ if __name__ == '__main__':
         bpy.data.objects["Camera"],
         num_samples=args.num_samples,
         use_transparent_bg=False,
-        use_denoising=True,
+        use_denoising=False,
+        use_adaptive_sampling=True,
     )
     set_output_properties(bpy.context.scene, output_file_path=args.out,
         res_x=args.res_x, res_y=args.res_y,
@@ -262,7 +263,8 @@ if __name__ == '__main__':
             bpy.data.objects["SideCamera"],
             num_samples=args.num_samples,
             use_transparent_bg=False,
-            use_denoising=True,
+            use_denoising=False,
+            use_adaptive_sampling=True,
         )
         set_output_properties(bpy.context.scene, output_file_path=sideview_name,
             res_x=args.res_x, res_y=args.res_y,
