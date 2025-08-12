@@ -26,11 +26,11 @@ def set_scene_frame_range(armature):
         action = armature.animation_data.action
         frame_start = int(action.frame_range[0])
         frame_end = int(action.frame_range[1])
-        
+
         # Set scene frame range to match the animation
         bpy.context.scene.frame_start = frame_start
         bpy.context.scene.frame_end = frame_end
-        
+
         print(f"Animation frames set: {frame_start} to {frame_end}")
     else:
         print("No animation data found in the imported FBX")
@@ -40,23 +40,23 @@ def set_world_background():
     bpy.context.scene.world.use_nodes = True
     world_nodes = bpy.context.scene.world.node_tree.nodes
     world_links = bpy.context.scene.world.node_tree.links
-    
+
     # Clear existing nodes
     for node in world_nodes:
         world_nodes.remove(node)
-    
+
     # Create new nodes for pure white background
     background_node = world_nodes.new(type='ShaderNodeBackground')
     output_node = world_nodes.new(type='ShaderNodeOutputWorld')
-    
+
     # Set background color to pure white (1,1,1)
     background_node.inputs['Color'].default_value = (1, 1, 1, 1)
     # Set strength for bright ambient light
     background_node.inputs['Strength'].default_value = 1.0
-    
+
     # Connect nodes
     world_links.new(background_node.outputs['Background'], output_node.inputs['Surface'])
-    
+
     # Position nodes in the node editor
     background_node.location = (-300, 0)
     output_node.location = (0, 0)
@@ -66,7 +66,7 @@ def set_eevee_renderer():
     # Set up Eevee renderer
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_EEVEE'
-    
+
     # Configure Eevee settings for faster rendering
     scene.eevee.taa_render_samples = 16  # Reduce samples for faster rendering
     scene.eevee.use_soft_shadows = True
@@ -75,7 +75,7 @@ def set_eevee_renderer():
     scene.eevee.use_gtao = True  # Keep ambient occlusion for better visuals
     scene.eevee.gtao_distance = 0.2
     scene.eevee.use_bloom = False  # Disable bloom for speed
-    
+
     # Set up camera for rendering
     scene.render.resolution_x = 1024
     scene.render.resolution_y = 1024
@@ -106,7 +106,7 @@ def find_armature_and_mesh(obj_names):
             mesh_object = obj
         if obj.type == 'MESH':
             mesh_object_list.append(obj)
-    
+
     return armature, mesh_object, mesh_object_list
 
 def find_center_of_mesh(mesh_object):
@@ -154,24 +154,14 @@ if __name__ == '__main__':
     setLight_ambient(color=(0.6,0.6,0.6,1))
     # scene = set_eevee_renderer()
 
-    # build_plane(translation=(0, 0, 0), plane_size=20)
-    ground_mesh = addGround(
-        location=(0, 0, 0),
-        groundSize=20,
-        shadowBrightness=0.1,
-        normal_axis="z",
-        alpha=1,
-        tex_fn=os.path.join('assets', 'cyclesProceduralWoodFloor.png'),
-    )
-
     fbx_path = args.path
     assert os.path.exists(fbx_path), fbx_path
     bpy.ops.import_scene.fbx(filepath=fbx_path)
     # Get the imported objects
     obj_names = [o.name for o in bpy.context.selected_objects]
-    
+
     armature, mesh_object, mesh_object_list = find_armature_and_mesh(obj_names)
-    
+
     set_scene_frame_range(armature)
     base_distance = 2.
     # base_location = (3, 0, 0.5)
@@ -183,23 +173,58 @@ if __name__ == '__main__':
     side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
     bpy.context.collection.objects.link(side_camera_obj)
 
-    for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30):    
+    min_height = 0
+
+    for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 15)) + [bpy.context.scene.frame_end]:
         # Set the current frame to the last frame
         bpy.context.scene.frame_set(frame)
-        
+
         center = find_center_of_mesh(mesh_object)
+        min_height = min(min_height, center[2])
         # Update camera to look at the last frame position
         set_camera(
-            location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]), 
+            location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]),
             center=(center[0], center[1], center[2]), focal=30, frame=frame,
             camera=bpy.data.objects["Camera"],
         )
         if args.add_sideview:
             set_camera(
-                location=(base_location_side[0] + center[0], base_location_side[1] + center[1], base_location_side[2] + center[2]), 
+                location=(base_location_side[0] + center[0], base_location_side[1] + center[1], base_location_side[2] + center[2]),
                 center=(center[0], center[1], center[2]), focal=30, frame=frame,
                 camera=bpy.data.objects["SideCamera"],
             )
+
+    # Smooth camera motion using spline interpolation
+    camera_obj = bpy.data.objects["Camera"]
+
+    # Select the camera object
+    bpy.ops.object.select_all(action='DESELECT')
+    camera_obj.select_set(True)
+    bpy.context.view_layer.objects.active = camera_obj
+
+    # Get the animation data
+    if camera_obj.animation_data and camera_obj.animation_data.action:
+        # Apply spline interpolation to the camera animation curves
+        for fcurve in camera_obj.animation_data.action.fcurves:
+            for kf in fcurve.keyframe_points:
+                kf.interpolation = 'BEZIER'
+
+        # If side camera exists, also smooth its motion
+        if args.add_sideview:
+            if side_camera_obj.animation_data and side_camera_obj.animation_data.action:
+                for fcurve in side_camera_obj.animation_data.action.fcurves:
+                    for kf in fcurve.keyframe_points:
+                        kf.interpolation = 'BEZIER'
+
+    # build_plane(translation=(0, 0, 0), plane_size=20)
+    ground_mesh = addGround(
+        location=(0, 0, min_height),
+        groundSize=20,
+        shadowBrightness=0.1,
+        normal_axis="z",
+        alpha=1,
+        tex_fn=os.path.join('assets', 'cyclesProceduralWoodFloor.png'),
+    )
 
     # Apply material to the mesh object, not the armature
     if mesh_object:
@@ -209,7 +234,7 @@ if __name__ == '__main__':
                 setMat_plastic(mesh_obj_, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
             else:
                 set_texture_map(mesh_obj_)
-    
+
     # First render with the main camera
     set_cycles_renderer(
         bpy.context.scene,
@@ -218,9 +243,9 @@ if __name__ == '__main__':
         use_transparent_bg=False,
         use_denoising=True,
     )
-    set_output_properties(bpy.context.scene, output_file_path=args.out, 
-        res_x=args.res_x, res_y=args.res_y, 
-        tile_x=args.res_x, tile_y=args.res_y, 
+    set_output_properties(bpy.context.scene, output_file_path=args.out,
+        res_x=args.res_x, res_y=args.res_y,
+        tile_x=args.res_x, tile_y=args.res_y,
         resolution_percentage=100,
         format='FFMPEG',
     )
@@ -239,9 +264,9 @@ if __name__ == '__main__':
             use_transparent_bg=False,
             use_denoising=True,
         )
-        set_output_properties(bpy.context.scene, output_file_path=sideview_name, 
-            res_x=args.res_x, res_y=args.res_y, 
-            tile_x=args.res_x, tile_y=args.res_y, 
+        set_output_properties(bpy.context.scene, output_file_path=sideview_name,
+            res_x=args.res_x, res_y=args.res_y,
+            tile_x=args.res_x, tile_y=args.res_y,
             resolution_percentage=100,
             format='FFMPEG',
         )
