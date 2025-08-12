@@ -116,7 +116,7 @@ def find_center_of_mesh(mesh_object):
     center_x = (min_x + max_x) / 2
     center_y = (min_y + max_y) / 2
     center_z = (min_z + max_z) / 2
-    return center_x, center_y, center_z
+    return center_x, center_y, center_z, min_z
 
 def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):            # 创建材质
     if True:
@@ -168,7 +168,7 @@ if __name__ == '__main__':
     base_location = (0, -base_distance, 0.5)
     base_location_side = (-base_distance, 0, 0.5)
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
-    center = find_center_of_mesh(mesh_object)
+    center, min_z = find_center_of_mesh(mesh_object)
     side_camera = bpy.data.cameras.new(name="SideCamera")
     side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
     bpy.context.collection.objects.link(side_camera_obj)
@@ -179,8 +179,8 @@ if __name__ == '__main__':
         # Set the current frame to the last frame
         bpy.context.scene.frame_set(frame)
 
-        center = find_center_of_mesh(mesh_object)
-        min_height = min(min_height, center[2])
+        center, min_z = find_center_of_mesh(mesh_object)
+        min_height = min(min_height, min_z)
         # Update camera to look at the last frame position
         set_camera(
             location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]),
