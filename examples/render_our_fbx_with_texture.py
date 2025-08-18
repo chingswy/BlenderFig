@@ -149,6 +149,7 @@ if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
     parser.add_argument('--add_sideview', action='store_true')
+    parser.add_argument('--blur', action='store_true')
     args = parse_args(parser)
 
     setup()
@@ -184,6 +185,7 @@ if __name__ == '__main__':
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
     _, min_z = find_center_of_mesh(mesh_object)
     center = find_center_of_armature(armature)
+    cx, cy = center[0], center[1]
 
     side_camera = bpy.data.cameras.new(name="SideCamera")
     side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
@@ -238,7 +240,7 @@ if __name__ == '__main__':
 
     # build_plane(translation=(0, 0, 0), plane_size=20)
     ground_mesh = addGround(
-        location=(0, 0, min_height),
+        location=(cx, cy, min_height),
         groundSize=20,
         shadowBrightness=0.1,
         normal_axis="z",
@@ -263,6 +265,7 @@ if __name__ == '__main__':
         use_transparent_bg=False,
         use_denoising=False,
         use_adaptive_sampling=True,
+        use_motion_blur=args.blur,
     )
     set_output_properties(bpy.context.scene, output_file_path=args.out,
         res_x=args.res_x, res_y=args.res_y,
@@ -285,7 +288,9 @@ if __name__ == '__main__':
             use_transparent_bg=False,
             use_denoising=False,
             use_adaptive_sampling=True,
+            use_motion_blur=args.blur,
         )
+
         set_output_properties(bpy.context.scene, output_file_path=sideview_name,
             res_x=args.res_x, res_y=args.res_y,
             tile_x=args.res_x, tile_y=args.res_y,

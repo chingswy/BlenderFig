@@ -31,7 +31,7 @@ def get_parser():
     parser.add_argument('--res_x', type=int, default=1024)
     parser.add_argument('--res_y', type=int, default=1024)
     parser.add_argument('--format', type=str, default='JPEG', choices=['JPEG', 'PNG'])
-    
+
     parser.add_argument('--res', type=int, default=100,
         help='Output file or directory')
     parser.add_argument('--num_samples', type=int, default=128,
@@ -69,9 +69,9 @@ def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3
     sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
 
 def setLight_sun(rotation_euler, strength, shadow_soft_size = 0.05):
-	x = rotation_euler[0] * 1.0 / 180.0 * np.pi 
-	y = rotation_euler[1] * 1.0 / 180.0 * np.pi 
-	z = rotation_euler[2] * 1.0 / 180.0 * np.pi 
+	x = rotation_euler[0] * 1.0 / 180.0 * np.pi
+	y = rotation_euler[1] * 1.0 / 180.0 * np.pi
+	z = rotation_euler[2] * 1.0 / 180.0 * np.pi
 	angle = (x,y,z)
 	bpy.ops.object.light_add(type = 'SUN', rotation = angle)
 	lamp = bpy.data.lights['Sun']
@@ -85,7 +85,7 @@ def setLight_sun(rotation_euler, strength, shadow_soft_size = 0.05):
 def setLight_ambient(color = (0,0,0,1)):
 	bpy.data.scenes[0].world.use_nodes = True
 	bpy.data.scenes[0].world.node_tree.nodes["Background"].inputs['Color'].default_value = color
- 
+
 
 def setup(rgb=(1,1,1,1)):
     np.random.seed(666)
