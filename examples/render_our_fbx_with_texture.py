@@ -1,6 +1,7 @@
 import os
 import bpy
 import numpy as np
+import shutil
 from mathutils import Vector
 
 from myblender.setup import (
@@ -156,6 +157,51 @@ def get_KRT_from_camera(camera):
             'RT': RT,
         })
     return camera_list
+
+def get_temp_output_path(final_output_path, temp_dir):
+    """
+    Get temporary output path based on final output path and temp directory.
+    If temp_dir is None, return the original path.
+    """
+    if temp_dir is None:
+        return final_output_path
+
+    # Ensure temp directory exists
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Get the basename of the final output
+    basename = os.path.basename(final_output_path)
+    temp_path = os.path.join(temp_dir, basename)
+
+    return temp_path
+
+def copy_from_temp_to_final(temp_path, final_path):
+    """
+    Copy file from temporary location to final location.
+    Create final directory if it doesn't exist.
+    """
+    if temp_path == final_path:
+        # No temporary directory was used
+        return
+
+    if not os.path.exists(temp_path):
+        print(f"Warning: Temporary file {temp_path} does not exist")
+        return
+
+    # Ensure final directory exists
+    final_dir = os.path.dirname(final_path)
+    os.makedirs(final_dir, exist_ok=True)
+
+    # Copy file
+    shutil.copy2(temp_path, final_path)
+    print(f"Copied {temp_path} -> {final_path}")
+
+    # Optionally remove temp file
+    try:
+        os.remove(temp_path)
+        print(f"Removed temporary file {temp_path}")
+    except OSError as e:
+        print(f"Warning: Could not remove temporary file {temp_path}: {e}")
 
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
@@ -334,7 +380,10 @@ if __name__ == '__main__':
         use_adaptive_sampling=True,
         use_motion_blur=args.blur,
     )
-    set_output_properties(bpy.context.scene, output_file_path=args.out,
+
+    # Get temporary output path for main video
+    temp_output_path = get_temp_output_path(args.out, args.tmp)
+    set_output_properties(bpy.context.scene, output_file_path=temp_output_path,
         res_x=args.res_x, res_y=args.res_y,
         tile_x=args.res_x, tile_y=args.res_y,
         resolution_percentage=100,
@@ -346,10 +395,15 @@ if __name__ == '__main__':
     camera_list = get_KRT_from_camera(bpy.data.objects["Camera"])
     K = np.stack([camera['K'] for camera in camera_list], axis=0)
     RT = np.stack([camera['RT'] for camera in camera_list], axis=0)
-    np.savez(args.out.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+    camera_npz_path = args.out.replace('.mp4', '_camera.npz')
+    temp_camera_npz_path = get_temp_output_path(camera_npz_path, args.tmp)
+    np.savez(temp_camera_npz_path, K=K, RT=RT)
 
     if not args.debug:
         bpy.ops.render.render(animation=True)
+        # Copy main video and camera file from temp to final location
+        copy_from_temp_to_final(temp_output_path, args.out)
+        copy_from_temp_to_final(temp_camera_npz_path, camera_npz_path)
 
     if args.add_sideview:
         sideview_name = os.path.join(
@@ -359,7 +413,9 @@ if __name__ == '__main__':
         sideview_camera_list = get_KRT_from_camera(bpy.data.objects["SideCamera"])
         K = np.stack([camera['K'] for camera in sideview_camera_list], axis=0)
         RT = np.stack([camera['RT'] for camera in sideview_camera_list], axis=0)
-        np.savez(sideview_name.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+        sideview_camera_npz_path = sideview_name.replace('.mp4', '_camera.npz')
+        temp_sideview_camera_npz_path = get_temp_output_path(sideview_camera_npz_path, args.tmp)
+        np.savez(temp_sideview_camera_npz_path, K=K, RT=RT)
 
         set_cycles_renderer(
             bpy.context.scene,
@@ -371,7 +427,9 @@ if __name__ == '__main__':
             use_motion_blur=args.blur,
         )
 
-        set_output_properties(bpy.context.scene, output_file_path=sideview_name,
+        # Get temporary output path for side view video
+        temp_sideview_path = get_temp_output_path(sideview_name, args.tmp)
+        set_output_properties(bpy.context.scene, output_file_path=temp_sideview_path,
             res_x=args.res_x, res_y=args.res_y,
             tile_x=args.res_x, tile_y=args.res_y,
             resolution_percentage=100,
@@ -379,6 +437,9 @@ if __name__ == '__main__':
         )
         if not args.debug:
             bpy.ops.render.render(animation=True)
+            # Copy side view video and camera file from temp to final location
+            copy_from_temp_to_final(temp_sideview_path, sideview_name)
+            copy_from_temp_to_final(temp_sideview_camera_npz_path, sideview_camera_npz_path)
 
     if args.add_topview:
         topview_name = os.path.join(
@@ -388,7 +449,9 @@ if __name__ == '__main__':
         topview_camera_list = get_KRT_from_camera(bpy.data.objects["TopCamera"])
         K = np.stack([camera['K'] for camera in topview_camera_list], axis=0)
         RT = np.stack([camera['RT'] for camera in topview_camera_list], axis=0)
-        np.savez(topview_name.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+        topview_camera_npz_path = topview_name.replace('.mp4', '_camera.npz')
+        temp_topview_camera_npz_path = get_temp_output_path(topview_camera_npz_path, args.tmp)
+        np.savez(temp_topview_camera_npz_path, K=K, RT=RT)
 
         set_cycles_renderer(
             bpy.context.scene,
@@ -400,7 +463,9 @@ if __name__ == '__main__':
             use_motion_blur=args.blur,
         )
 
-        set_output_properties(bpy.context.scene, output_file_path=topview_name,
+        # Get temporary output path for top view video
+        temp_topview_path = get_temp_output_path(topview_name, args.tmp)
+        set_output_properties(bpy.context.scene, output_file_path=temp_topview_path,
             res_x=args.res_x, res_y=args.res_y,
             tile_x=args.res_x, tile_y=args.res_y,
             resolution_percentage=100,
@@ -408,3 +473,6 @@ if __name__ == '__main__':
         )
         if not args.debug:
             bpy.ops.render.render(animation=True)
+            # Copy top view video and camera file from temp to final location
+            copy_from_temp_to_final(temp_topview_path, topview_name)
+            copy_from_temp_to_final(temp_topview_camera_npz_path, topview_camera_npz_path)

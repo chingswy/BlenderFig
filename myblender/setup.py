@@ -28,6 +28,8 @@ def get_parser():
         help='Output file or directory')
     parser.add_argument('--out_blend', type=str, default=None,
         help='Output file or directory')
+    parser.add_argument('--tmp', type=str, default='/dockerdata/render',
+        help='Temporary directory for video output during rendering')
     parser.add_argument('--res_x', type=int, default=1024)
     parser.add_argument('--res_y', type=int, default=1024)
     parser.add_argument('--format', type=str, default='JPEG', choices=['JPEG', 'PNG'])
