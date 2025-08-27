@@ -2,7 +2,7 @@ import bpy
 import numpy as np
 from mathutils import Vector, Quaternion, Matrix
 
-def get_calibration_matrix_K_from_blender(mode='simple'):
+def get_calibration_matrix_K_from_blender(camera=None, mode='simple'):
 
     scene = bpy.context.scene
 
@@ -10,7 +10,10 @@ def get_calibration_matrix_K_from_blender(mode='simple'):
     width = scene.render.resolution_x * scale # px
     height = scene.render.resolution_y * scale # px
 
-    camdata = scene.camera.data
+    if camera is None:
+        camdata = scene.camera.data
+    else:
+        camdata = camera.data
 
     if mode == 'simple':
 
@@ -22,7 +25,7 @@ def get_calibration_matrix_K_from_blender(mode='simple'):
         K[1][2] = height / 2.
         K[2][2] = 1.
         K.transpose()
-    
+
     if mode == 'complete':
 
         focal = camdata.lens # mm
@@ -31,12 +34,12 @@ def get_calibration_matrix_K_from_blender(mode='simple'):
         pixel_aspect_ratio = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
 
         if (camdata.sensor_fit == 'VERTICAL'):
-            # the sensor height is fixed (sensor fit is horizontal), 
+            # the sensor height is fixed (sensor fit is horizontal),
             # the sensor width is effectively changed with the pixel aspect ratio
-            s_u = width / sensor_width / pixel_aspect_ratio 
+            s_u = width / sensor_width / pixel_aspect_ratio
             s_v = height / sensor_height
         else: # 'HORIZONTAL' and 'AUTO'
-            # the sensor width is fixed (sensor fit is horizontal), 
+            # the sensor width is fixed (sensor fit is horizontal),
             # the sensor height is effectively changed with the pixel aspect ratio
             pixel_aspect_ratio = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
             s_u = width / sensor_width
@@ -54,7 +57,7 @@ def get_calibration_matrix_K_from_blender(mode='simple'):
             [      0, alpha_v, v_0],
             [      0,       0,   1]
         ], dtype=np.float32)
-    
+
     return K
 
 def set_intrinsics_from_blender_params(lens: float = None, image_width: int = None, image_height: int = None,
@@ -251,6 +254,6 @@ def get_3x4_RT_matrix_from_blender(obj):
 
     R_OpenCV = R_BlenderView_to_OpenCVView @ R_BlenderView
     T_OpenCV = R_BlenderView_to_OpenCVView @ T_BlenderView
-    
+
     RT_OpenCV = np.column_stack((R_OpenCV, T_OpenCV))
     return RT_OpenCV

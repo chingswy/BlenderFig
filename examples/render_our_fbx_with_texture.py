@@ -18,7 +18,7 @@ from myblender.geometry import (
     addGround,
 )
 from myblender.material import colorObj, setMat_plastic, setHDREnv
-
+from myblender.camera import get_calibration_matrix_K_from_blender, get_3x4_RT_matrix_from_blender
 
 def set_scene_frame_range(armature):
     if armature and armature.animation_data and armature.animation_data.action:
@@ -145,6 +145,18 @@ def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):
             mesh_obj.data.materials.append(material)
     return material
 
+def get_KRT_from_camera(camera):
+    camera_list = []
+    for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+        bpy.context.scene.frame_set(frame)
+        K = get_calibration_matrix_K_from_blender(camera, mode='complete')
+        RT = get_3x4_RT_matrix_from_blender(camera)
+        camera_list.append({
+            'K': K,
+            'RT': RT,
+        })
+    return camera_list
+
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
@@ -165,7 +177,7 @@ if __name__ == '__main__':
     else:
         add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0), strength=2.0)
 
-    setLight_ambient(color=(0.6,0.6,0.6,1))
+    setLight_ambient(color=(0.3,0.3,0.3,1))
     # scene = set_eevee_renderer()
 
     fbx_path = args.path
@@ -219,7 +231,7 @@ if __name__ == '__main__':
     center_list = np.array(center_list)
     dist = np.linalg.norm(center_list[1:] - center_list[:1], axis=-1).max()
     flag_use_static_camera = args.static
-    if dist < 0.5:
+    if dist < 1:
         flag_use_static_camera = True
 
     for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30)) + [bpy.context.scene.frame_end]:
@@ -328,6 +340,14 @@ if __name__ == '__main__':
         resolution_percentage=100,
         format='FFMPEG',
     )
+
+    # Save camera parameters for each frame
+    # Get the active camera
+    camera_list = get_KRT_from_camera(bpy.data.objects["Camera"])
+    K = np.stack([camera['K'] for camera in camera_list], axis=0)
+    RT = np.stack([camera['RT'] for camera in camera_list], axis=0)
+    np.savez(args.out.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+
     if not args.debug:
         bpy.ops.render.render(animation=True)
 
@@ -336,6 +356,11 @@ if __name__ == '__main__':
             os.path.dirname(args.out),
             os.path.basename(args.out).split('.')[0] + '-side.mp4'
         )
+        sideview_camera_list = get_KRT_from_camera(bpy.data.objects["SideCamera"])
+        K = np.stack([camera['K'] for camera in sideview_camera_list], axis=0)
+        RT = np.stack([camera['RT'] for camera in sideview_camera_list], axis=0)
+        np.savez(sideview_name.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+
         set_cycles_renderer(
             bpy.context.scene,
             bpy.data.objects["SideCamera"],
@@ -360,6 +385,11 @@ if __name__ == '__main__':
             os.path.dirname(args.out),
             os.path.basename(args.out).split('.')[0] + '-top.mp4'
         )
+        topview_camera_list = get_KRT_from_camera(bpy.data.objects["TopCamera"])
+        K = np.stack([camera['K'] for camera in topview_camera_list], axis=0)
+        RT = np.stack([camera['RT'] for camera in topview_camera_list], axis=0)
+        np.savez(topview_name.replace('.mp4', '_camera.npz'), K=K, RT=RT)
+
         set_cycles_renderer(
             bpy.context.scene,
             bpy.data.objects["TopCamera"],
