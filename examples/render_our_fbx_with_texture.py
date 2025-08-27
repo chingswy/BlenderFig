@@ -149,7 +149,9 @@ if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
     parser.add_argument('--add_sideview', action='store_true')
+    parser.add_argument('--add_topview', action='store_true')
     parser.add_argument('--blur', action='store_true')
+    parser.add_argument('--static', action='store_true')
     args = parse_args(parser)
 
     setup()
@@ -177,10 +179,12 @@ if __name__ == '__main__':
         base_distance = 2.5
         base_location = (0, -base_distance, 0.5)
         base_location_side = (-base_distance, 0, 0.5)
+        base_location_top = (0, 0, base_distance + 1.0)  # 俯视图相机位置：在目标正上方
     elif look_at_mode == 'mesh':
         base_distance = 2.5
         base_location = (0, -base_distance, 0.5)
         base_location_side = (-base_distance, 0, 0.5)
+        base_location_top = (0, 0, base_distance + 1.0)  # 俯视图相机位置：在目标正上方
 
     # set_camera(location=(0, -4, 2.), center=(0, 0, 1), focal=30)
     _, min_z = find_center_of_mesh(mesh_object)
@@ -191,7 +195,27 @@ if __name__ == '__main__':
     side_camera_obj = bpy.data.objects.new(name="SideCamera", object_data=side_camera)
     bpy.context.collection.objects.link(side_camera_obj)
 
+    top_camera = bpy.data.cameras.new(name="TopCamera")
+    top_camera_obj = bpy.data.objects.new(name="TopCamera", object_data=top_camera)
+    bpy.context.collection.objects.link(top_camera_obj)
+
     min_height = 0
+    # 检查一遍整段的位置
+    center_list = []
+    for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30)) + [bpy.context.scene.frame_end]:
+        bpy.context.scene.frame_set(frame)
+        if look_at_mode == 'root':
+            center = find_center_of_armature(armature)
+        elif look_at_mode == 'mesh':
+            center, _ = find_center_of_mesh(mesh_object)
+        _, min_z = find_center_of_mesh(mesh_object)
+        min_height = min(min_height, min_z)
+        center_list.append(center)
+    center_list = np.array(center_list)
+    dist = np.linalg.norm(center_list[1:] - center_list[:1], axis=-1).max()
+    flag_use_static_camera = args.static
+    if dist < 0.5:
+        flag_use_static_camera = True
 
     for frame in list(range(bpy.context.scene.frame_start, bpy.context.scene.frame_end, 30)) + [bpy.context.scene.frame_end]:
         # Set the current frame to the last frame
@@ -204,6 +228,9 @@ if __name__ == '__main__':
         _, min_z = find_center_of_mesh(mesh_object)
         min_height = min(min_height, min_z)
         # Update camera to look at the last frame position
+        if flag_use_static_camera and frame > bpy.context.scene.frame_start:
+            # skip setting camera
+            continue
         set_camera(
             location=(base_location[0] + center[0], base_location[1] + center[1], base_location[2] + center[2]),
             center=(center[0], center[1], center[2]), focal=30, frame=frame,
@@ -215,7 +242,12 @@ if __name__ == '__main__':
                 center=(center[0], center[1], center[2]), focal=30, frame=frame,
                 camera=bpy.data.objects["SideCamera"],
             )
-
+        if args.add_topview:
+            set_camera(
+                location=(base_location_top[0] + center[0], base_location_top[1] + center[1], base_location_top[2] + center[2]),
+                center=(center[0], center[1], center[2]), focal=30, frame=frame,
+                camera=bpy.data.objects["TopCamera"],
+            )
     # Smooth camera motion using spline interpolation
     camera_obj = bpy.data.objects["Camera"]
 
@@ -238,6 +270,13 @@ if __name__ == '__main__':
                     for kf in fcurve.keyframe_points:
                         kf.interpolation = 'BEZIER'
 
+        # If top camera exists, also smooth its motion
+        if args.add_topview:
+            if top_camera_obj.animation_data and top_camera_obj.animation_data.action:
+                for fcurve in top_camera_obj.animation_data.action.fcurves:
+                    for kf in fcurve.keyframe_points:
+                        kf.interpolation = 'BEZIER'
+
     # build_plane(translation=(0, 0, 0), plane_size=20)
     ground_mesh = addGround(
         location=(cx, cy, min_height),
@@ -255,7 +294,9 @@ if __name__ == '__main__':
                 meshColor = colorObj((153/255.,  216/255.,  201/255., 1.), 0.5, 1.0, 1.0, 0.0, 2.0)
                 setMat_plastic(mesh_obj_, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
             else:
-                set_texture_map(mesh_obj_)
+                # set_texture_map(mesh_obj_, body_texture='assets/SMPLitex-texture-00000.png')
+                # set_texture_map(mesh_obj_, body_texture='assets/T_SM_SmplX_BaseColor.png')
+                set_texture_map(mesh_obj_, body_texture='assets/smplx_texture_f_alb.png')
 
     # First render with the main camera
     set_cycles_renderer(
@@ -292,6 +333,30 @@ if __name__ == '__main__':
         )
 
         set_output_properties(bpy.context.scene, output_file_path=sideview_name,
+            res_x=args.res_x, res_y=args.res_y,
+            tile_x=args.res_x, tile_y=args.res_y,
+            resolution_percentage=100,
+            format='FFMPEG',
+        )
+        if not args.debug:
+            bpy.ops.render.render(animation=True)
+
+    if args.add_topview:
+        topview_name = os.path.join(
+            os.path.dirname(args.out),
+            os.path.basename(args.out).split('.')[0] + '-top.mp4'
+        )
+        set_cycles_renderer(
+            bpy.context.scene,
+            bpy.data.objects["TopCamera"],
+            num_samples=args.num_samples,
+            use_transparent_bg=False,
+            use_denoising=False,
+            use_adaptive_sampling=True,
+            use_motion_blur=args.blur,
+        )
+
+        set_output_properties(bpy.context.scene, output_file_path=topview_name,
             res_x=args.res_x, res_y=args.res_y,
             tile_x=args.res_x, tile_y=args.res_y,
             resolution_percentage=100,
