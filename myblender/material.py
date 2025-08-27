@@ -212,7 +212,7 @@ def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plas
     else:
         color = get_rgb(pid)
     if not use_plastic:
-        build_pbr_nodes(mat.node_tree, base_color=color, 
+        build_pbr_nodes(mat.node_tree, base_color=color,
             metallic=metallic, specular=specular, roughness=roughness, **kwargs)
     else:
         setMat_plastic(mat, colorObj(color, B=0.3))

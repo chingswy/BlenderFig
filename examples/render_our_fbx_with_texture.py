@@ -148,6 +148,7 @@ def set_texture_map(mesh_obj, body_texture='./assets/T_SM_SmplX_BaseColor.png'):
 if __name__ == '__main__':
     # ${blender} --background -noaudio --python examples/render_our_fbx.py -- ~/Desktop/t2m/swimanimset_jog_fwd_in_shallow_water.fbx
     parser = get_parser()
+    parser.add_argument('--hdr', type=str, default=None)
     parser.add_argument('--add_sideview', action='store_true')
     parser.add_argument('--add_topview', action='store_true')
     parser.add_argument('--blur', action='store_true')
@@ -155,11 +156,15 @@ if __name__ == '__main__':
     args = parse_args(parser)
 
     setup()
-    add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0), strength=2.0)
 
     # set_world_background()
 
     # setHDREnv(fn='../DCC_Scripts/blender/Zbyg-Studio_0018_1k_m.hdr', strength=1.0)
+    if args.hdr:
+        setHDREnv(fn=args.hdr, strength=1.0)
+    else:
+        add_sunlight(name='Light', location=(0., 0., 5.), rotation=(0., np.pi/12, 0), strength=2.0)
+
     setLight_ambient(color=(0.6,0.6,0.6,1))
     # scene = set_eevee_renderer()
 
@@ -278,14 +283,23 @@ if __name__ == '__main__':
                         kf.interpolation = 'BEZIER'
 
     # build_plane(translation=(0, 0, 0), plane_size=20)
-    ground_mesh = addGround(
-        location=(cx, cy, min_height),
-        groundSize=20,
-        shadowBrightness=0.1,
-        normal_axis="z",
-        alpha=1,
-        tex_fn=os.path.join('assets', 'cyclesProceduralWoodFloor.png'),
-    )
+    # 当有HDR时，地面作为阴影捕捉器（不可见但接收阴影）；无HDR时地面正常显示
+    shadow_catcher_mode = args.hdr is not None
+    if args.hdr:
+        bpy.ops.mesh.primitive_plane_add(size=20, enter_editmode=False, align='WORLD', location=(cx, cy, min_height), scale=(1, 1, 1))
+        ground_mesh = bpy.context.object
+        ground_mesh.name = "ground"
+        ground_mesh.is_shadow_catcher = True
+    else:
+        ground_mesh = addGround(
+            location=(cx, cy, min_height),
+            groundSize=20,
+            shadowBrightness=0.1,
+            normal_axis="z",
+            alpha=1,
+            tex_fn=os.path.join('assets', 'cyclesProceduralWoodFloor.png'),
+            shadow_catcher=shadow_catcher_mode,
+        )
 
     # Apply material to the mesh object, not the armature
     if mesh_object:

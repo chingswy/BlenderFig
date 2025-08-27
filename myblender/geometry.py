@@ -9,6 +9,7 @@
 import bpy
 import bmesh
 import os
+import math
 from os.path import join
 from .material import get_rgb, set_material_i, set_principled_node, add_material, setMat_plastic
 import numpy as np
@@ -40,7 +41,7 @@ def myimport(filename):
     mat = list(mat_new - mat_old)[0]
     return current_obj, key, mat
 
-def create_any_mesh(filename, vid, scale=(1, 1, 1), 
+def create_any_mesh(filename, vid, scale=(1, 1, 1),
     rotation=(0., 0., 0.), location=(0, 0, 0), shadow=True, **kwargs):
     cylinder, name, matname = myimport(filename)
     cylinder.scale = scale
@@ -84,7 +85,7 @@ def create_halfcylinder(vid, radius=1, height=2, **kwargs):
     create_any_mesh(join(assets_dir, 'halfcylinder_100.obj'), vid=vid,
         scale=scale, location=location, **kwargs)
 
-def create_arrow(vid, start, end, 
+def create_arrow(vid, start, end,
     cylinder_radius=0.2, cone_radius=0.3,
     cylinder_height=0.6, cone_height=0.4,):
     scale = (cylinder_radius, cylinder_radius, cylinder_height)
@@ -120,7 +121,7 @@ def create_ellipsold(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs
     look_at(cylinder, end)
     return cylinder
 
-def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.), 
+def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.),
     cone_radius=0.03, cone_height=0.1,
     cylinder_radius=0.01):
     start, end = np.array(start), np.array(end)
@@ -155,7 +156,7 @@ def _create_image(imgname, remove_shadow=False):
         node = nodes.new('ShaderNodeBackground')
         links.new(image.outputs[0], node.inputs[0])
         links.new(node.outputs[0], out.inputs[0])
-    return image_mesh 
+    return image_mesh
 
 def create_image_corners(imgname, corners, remove_shadow=False):
     image_mesh = _create_image(imgname, remove_shadow)
@@ -277,7 +278,7 @@ def create_bbox3d(scale=(1., 1., 1.), location=(0., 0., 0.), rotation=None, pid=
     obj = bpy.context.object
     obj.modifiers["Wireframe"].thickness = 0.04
     name = obj.name
-    
+
     matname = "Material_{}".format(name)
     mat = add_material(matname, use_nodes=True, make_node_tree_empty=False)
     obj.data.materials.append(mat)
@@ -391,7 +392,7 @@ def load_smpl_npz(filename, default_rotation=(0., 0., 0.)):
 def export_smpl_npz_to_fbx(filename):
     # Select all objects in the scene
     bpy.ops.object.select_all(action='DESELECT')
-    
+
     # Find and select only armature objects
     for obj in bpy.data.objects:
         if obj.type == 'ARMATURE':
@@ -405,9 +406,9 @@ def export_smpl_npz_to_fbx(filename):
     # Create output filename by replacing .npz with .fbx
     output_filename = filename.replace('.npz', '.fbx')
     output_filepath = output_filename
-    
+
     # Select only the SMPLX object for export
-    
+
     # bpy.ops.object.select_all(action='DESELECT')
     # smplx_obj.select_set(True)
     # print(smplx_obj.type)
@@ -421,7 +422,7 @@ def export_smpl_npz_to_fbx(filename):
         path_mode='RELATIVE'
     )
 
-def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_axis="Z", tex_fn=None, alpha=0.5):
+def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_axis="Z", tex_fn=None, alpha=0.5, shadow_catcher=False):
     # initialize a ground for shadow
     bpy.context.scene.cycles.film_transparent = True
     if normal_axis.upper() == "Z":
@@ -443,9 +444,9 @@ def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_a
     ground.name = "ground"
 
     try:
-        ground.is_shadow_catcher = False  # for blender 3.X
+        ground.is_shadow_catcher = shadow_catcher  # for blender 3.X
     except:
-        ground.cycles.is_shadow_catcher = False  # for blender 2.X
+        ground.cycles.is_shadow_catcher = shadow_catcher  # for blender 2.X
 
     # set material
     checker_mat = bpy.data.materials.new("CheckerboardMaterial")
@@ -487,13 +488,20 @@ def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_a
         tree.links.new(mapping_node.outputs["Vector"], image_node.inputs["Vector"])
         texture_output = image_node.outputs["Color"]
 
-    # 添加Principled BSDF节点
-    bsdf_node = tree.nodes.new("ShaderNodeBsdfPrincipled")
-    bsdf_node.inputs["Roughness"].default_value = 1
-    bsdf_node.inputs["Alpha"].default_value = alpha  # 设置透明度
+    if shadow_catcher:
+        # 当作为阴影捕捉器时，使用简单的透明材质
+        # Blender的shadow catcher功能会自动处理阴影显示
+        transparent_node = tree.nodes.new("ShaderNodeBsdfTransparent")
+        transparent_node.inputs["Color"].default_value = (1, 1, 1, 1)  # 白色透明
+        tree.links.new(transparent_node.outputs["BSDF"], tree.nodes["Material Output"].inputs["Surface"])
+    else:
+        # 添加Principled BSDF节点
+        bsdf_node = tree.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf_node.inputs["Roughness"].default_value = 1
+        bsdf_node.inputs["Alpha"].default_value = alpha  # 设置透明度
 
-    # 连接节点
-    tree.links.new(texture_output, bsdf_node.inputs["Base Color"])
-    tree.links.new(bsdf_node.outputs["BSDF"], tree.nodes["Material Output"].inputs["Surface"])
+        # 连接节点
+        tree.links.new(texture_output, bsdf_node.inputs["Base Color"])
+        tree.links.new(bsdf_node.outputs["BSDF"], tree.nodes["Material Output"].inputs["Surface"])
 
     return ground
