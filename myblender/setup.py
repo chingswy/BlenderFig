@@ -109,6 +109,45 @@ def build_rgb_background(world,
 
     node_tree.links.new(rgb_node.outputs["Color"], node_tree.nodes["Background"].inputs["Color"])
 
+def set_eevee_renderer(scene: bpy.types.Scene,
+    camera_object: bpy.types.Object):
+    scene.camera = camera_object
+
+    # Set up Eevee renderer
+    # In newer Blender versions, 'BLENDER_EEVEE' is replaced with 'BLENDER_EEVEE_NEXT'
+    try:
+        scene.render.engine = 'BLENDER_EEVEE'
+    except TypeError:
+        # Fall back to BLENDER_EEVEE_NEXT if BLENDER_EEVEE is not available
+        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+
+    # Configure Eevee settings for faster rendering
+    scene.eevee.taa_render_samples = 16  # Reduce samples for faster rendering
+    # scene.eevee.use_soft_shadows = True
+    # Disable screen space reflections for speed
+    try:
+        scene.eevee.use_ssr = False
+    except AttributeError:
+        # Handle newer Blender versions where the attribute might have a different name
+        if hasattr(scene.eevee, 'ssr_enable'):
+            scene.eevee.ssr_enable = False
+    # Handle SSR refraction setting for compatibility across Blender versions
+    try:
+        scene.eevee.use_ssr_refraction = False
+    except AttributeError:
+        # For newer Blender versions where the attribute might have a different name
+        if hasattr(scene.eevee, 'ssr_refraction_enable'):
+            scene.eevee.ssr_refraction_enable = False
+    scene.eevee.use_gtao = True  # Keep ambient occlusion for better visuals
+    scene.eevee.gtao_distance = 0.2
+    # Handle bloom setting for compatibility across Blender versions
+    try:
+        scene.eevee.use_bloom = False  # Disable bloom for speed
+    except AttributeError:
+        # For newer Blender versions where the attribute might have a different name
+        if hasattr(scene.eevee, 'bloom_enable'):
+            scene.eevee.bloom_enable = False
+
 def set_cycles_renderer(scene: bpy.types.Scene,
                         camera_object: bpy.types.Object,
                         num_samples: int,

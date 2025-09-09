@@ -50,7 +50,11 @@ def create_any_mesh(filename, vid, scale=(1, 1, 1),
     # set_material_i(bpy.data.materials[matname], vid, **kwargs)
     set_material_i(cylinder, vid, **kwargs)
     if not shadow:
-        bpy.data.materials[matname].shadow_method = 'NONE'
+        try:
+            bpy.data.materials[matname].shadow_method = 'NONE'
+        except AttributeError:
+            # shadow_method不存在于当前Blender版本中
+            pass
         try:
             cylinder.cycles_visibility.shadow = False
         except:
@@ -452,7 +456,13 @@ def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_a
     checker_mat = bpy.data.materials.new("CheckerboardMaterial")
     checker_mat.use_nodes = True
     checker_mat.blend_method = "BLEND"  # 启用透明混合
-    checker_mat.shadow_method = "HASHED"  # 优化阴影表现
+
+    # 设置阴影方法 - 兼容不同版本的Blender
+    try:
+        checker_mat.shadow_method = "HASHED"  # 优化阴影表现 (Blender 3.x+)
+    except AttributeError:
+        # 在较新版本的Blender中，shadow_method可能不存在或已更改
+        pass
     ground.data.materials.append(checker_mat)
     ground.active_material = checker_mat
     tree = checker_mat.node_tree
