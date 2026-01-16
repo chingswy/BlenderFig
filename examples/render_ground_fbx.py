@@ -15,7 +15,7 @@ if __name__ == "__main__":
     setup(rgb=(1,1,1,0))
 
     # 读入fbx
-    fbxname = "assets/2026V2M/evaluation_original_wv_demo_koala_keyframe_seed16_epoch40/epoch40/00000001_keling2_pred_seed42.fbx"
+    fbxname = "assets/2026V2M/00000001_keling2_pred_seed42.fbx"
 
     assert os.path.exists(fbxname), fbxname
 
