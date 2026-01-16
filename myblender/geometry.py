@@ -19,14 +19,19 @@ log = print
 
 assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'objs'))
 
+print(assets_dir)
+print(sorted(os.listdir(assets_dir)))
 
 
 def myimport(filename):
     keys_old = set(bpy.data.objects.keys())
     mat_old = set(bpy.data.materials.keys())
     image_old = set(bpy.data.images.keys())
+    assert os.path.exists(filename), filename
     if filename.endswith('.obj'):
-        bpy.ops.import_scene.obj(filepath=filename, axis_forward='X', axis_up='Z')
+        # Blender 3.3 中 wm.obj_import 不支持 axis_forward 和 axis_up 参数
+        # 使用默认参数导入，轴方向通过后续的旋转调整
+        bpy.ops.wm.obj_import(filepath=filename)
     keys_new = set(bpy.data.objects.keys())
     mat_new = set(bpy.data.materials.keys())
     image_new = set(bpy.data.images.keys())
@@ -38,7 +43,24 @@ def myimport(filename):
     if len(key_image) > 0:
         print('>>> Loading image {}'.format(key_image[0]))
         key = (key, key_image[0])
-    mat = list(mat_new - mat_old)[0]
+    
+    # 检查是否有新材质被创建，如果没有则创建一个默认材质
+    mat_diff = list(mat_new - mat_old)
+    if len(mat_diff) > 0:
+        mat = mat_diff[0]  # 材质名称（字符串）
+    else:
+        # 如果没有材质，创建一个默认材质并分配给对象
+        mat_name = "Material_{}".format(key if isinstance(key, str) else key[0])
+        mat_obj = add_material(mat_name, use_nodes=True, make_node_tree_empty=False)
+        # 确保对象有材质槽
+        if len(current_obj.data.materials) == 0:
+            current_obj.data.materials.append(mat_obj)
+        else:
+            current_obj.data.materials[0] = mat_obj
+        current_obj.active_material = mat_obj
+        mat = mat_name  # 返回材质名称而不是对象
+        print('>>> Created default material {} for object {}'.format(mat_name, key))
+    
     return current_obj, key, mat
 
 def create_any_mesh(filename, vid, scale=(1, 1, 1),
@@ -51,9 +73,11 @@ def create_any_mesh(filename, vid, scale=(1, 1, 1),
     set_material_i(cylinder, vid, **kwargs)
     if not shadow:
         try:
-            bpy.data.materials[matname].shadow_method = 'NONE'
-        except AttributeError:
-            # shadow_method不存在于当前Blender版本中
+            # 确保材质存在
+            if matname in bpy.data.materials:
+                bpy.data.materials[matname].shadow_method = 'NONE'
+        except (AttributeError, KeyError):
+            # shadow_method不存在于当前Blender版本中，或材质不存在
             pass
         try:
             cylinder.cycles_visibility.shadow = False
@@ -127,22 +151,23 @@ def create_ellipsold(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs
 
 def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.),
     cone_radius=0.03, cone_height=0.1,
-    cylinder_radius=0.01):
+    cylinder_radius=0.01, length_scale=1.0):
     start, end = np.array(start), np.array(end)
     length = np.linalg.norm(end - start)
-    scale = (cylinder_radius, cylinder_radius, length/2)
+    true_end = start + (end - start) * length_scale
+    scale = (cylinder_radius, cylinder_radius, length/2 * length_scale)
     dir = end - start
     dir /= np.linalg.norm(dir)
-    location = start + (end - start) / 2
+    location = start + (true_end - start) / 2
     # disable shadow for ray
     cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
         scale=scale, location=location, shadow=False)
     cone_scale = (cone_radius, cone_radius, cone_height)
-    cone_location = end + dir * cone_height * 0.01
+    cone_location = true_end + dir * cone_height * 0.01
     cone = create_any_mesh(join(assets_dir, 'cone_100.obj'), vid,
         scale=cone_scale, location=cone_location, shadow=False)
-    look_at(cylinder, end)
-    look_at(cone, end)
+    look_at(cylinder, true_end)
+    look_at(cone, true_end)
     # set_material_rgb(bpy.data.materials[matname], [0, 0, 0])
 
 def _create_image(imgname, remove_shadow=False):

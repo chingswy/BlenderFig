@@ -7,8 +7,16 @@
   @ FilePath: /EasyMocapPublic/scripts/blender/render_example.py
 '''
 import os
+import sys
 import numpy as np
 import bpy
+
+# 添加myblender模块路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)  # 项目根目录
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from myblender.geometry import (
     set_camera,
     build_plane,
