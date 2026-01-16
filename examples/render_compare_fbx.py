@@ -51,9 +51,48 @@ def set_scene_frame_range(armature):
     else:
         print("No animation data found in the imported FBX")
 
+def zero_xy_translation(armature):
+    """将动作数据中的xy平面位移设置为0（针对Pelvis根骨骼）"""
+    if not armature or not armature.animation_data or not armature.animation_data.action:
+        print("No animation data found to zero out XY translation")
+        return
+
+    action = armature.animation_data.action
+
+    # 先打印所有的fcurves用于调试
+    print("=== All fcurves in action ===")
+    for fcurve in action.fcurves:
+        print(f"  {fcurve.data_path}[{fcurve.array_index}], keyframes: {len(fcurve.keyframe_points)}")
+    print("=============================")
+
+    # 遍历所有fcurves，找到位置相关的曲线
+    for fcurve in action.fcurves:
+        # 检查是否是根骨骼(Pelvis)的location动画
+        # data_path通常是 "pose.bones[\"Pelvis\"].location" 或 "location"
+        # array_index: 0=X, 1=Y, 2=Z
+        is_root_location = (
+            fcurve.data_path == 'location' or  # armature本身的位移
+            ('Pelvis' in fcurve.data_path and 'location' in fcurve.data_path)  # Pelvis骨骼的位移
+        )
+
+        if is_root_location:
+            # 只处理X和Y分量 (array_index 0 和 1)
+            if fcurve.array_index in [0, 1]:
+                num_keyframes = len(fcurve.keyframe_points)
+                print(f"Zeroing {num_keyframes} keyframes for: {fcurve.data_path}[{fcurve.array_index}]")
+                # 将所有关键帧的值设置为0
+                for keyframe in fcurve.keyframe_points:
+                    keyframe.co[1] = 0.0  # co[1]是关键帧的值
+                    keyframe.handle_left[1] = 0.0
+                    keyframe.handle_right[1] = 0.0
+                # 更新fcurve确保修改生效
+                fcurve.update()
+
 if __name__ == '__main__':
     parser = get_parser()
     parser.add_argument('--video', type=str, default=None)
+    parser.add_argument('--zero', action='store_true')
+    parser.add_argument('--no_trans', action='store_true', help='将所有动作数据的xy平面位移设置为0')
     args = parse_args(parser)
 
     paths = sorted(args.path)
@@ -87,9 +126,14 @@ if __name__ == '__main__':
             else:
                 obj.name = f"{file_basename}_{i}"
 
+        # 如果启用no_trans，将xy平面位移设置为0
+        if args.no_trans:
+            zero_xy_translation(armature)
+
         # 设置位置为接近正方形的矩形网格分布
-        row = index // cols
-        col = index % cols
-        armature.location.x = col * spacing
-        armature.location.y = -row * spacing
-        set_scene_frame_range(armature)
+        if not args.zero:
+            row = index // cols
+            col = index % cols
+            armature.location.x = col * spacing
+            armature.location.y = -row * spacing
+            set_scene_frame_range(armature)
