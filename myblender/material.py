@@ -212,7 +212,19 @@ def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plas
     else:
         color = get_rgb(pid)
     if not use_plastic:
-        build_pbr_nodes(mat.node_tree, base_color=color,
+        # Handle both mesh objects and material objects
+        if isinstance(mat, bpy.types.Object):
+            # mat is actually a mesh object, get its active material
+            if mat.active_material is None:
+                # Create a new material if none exists
+                new_mat = bpy.data.materials.new('MeshMaterial')
+                new_mat.use_nodes = True
+                mat.data.materials.append(new_mat)
+                mat.active_material = new_mat
+            material = mat.active_material
+        else:
+            material = mat
+        build_pbr_nodes(material.node_tree, base_color=color,
             metallic=metallic, specular=specular, roughness=roughness, **kwargs)
     else:
         setMat_plastic(mat, colorObj(color, B=0.3))
@@ -243,3 +255,84 @@ def setHDREnv(fn, strength=1.0):
     # Link all nodes
     node_tree.links.new(node_environment.outputs["Color"], node_background.inputs["Color"])
     node_tree.links.new(node_background.outputs["Background"], node_output.inputs["Surface"])
+
+
+def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
+    """
+    修正后的雾气设置：
+    1. 增强了节点连接的鲁棒性（适配新旧版本Blender）。
+    2. 移除了 Set Alpha 节点，确保雾气能覆盖背景。
+    3. 默认颜色稍微调深一点蓝色，以便在白色背景下能看清。
+    """
+    # 1. 开启 Mist Pass
+    scene.view_layers[0].use_pass_mist = True
+
+    # 2. 配置世界 Mist 参数
+    scene.world.mist_settings.use_mist = True
+    scene.world.mist_settings.start = start
+    scene.world.mist_settings.depth = depth
+    scene.world.mist_settings.falloff = 'QUADRATIC'
+
+    # 3. 设置合成节点
+    scene.use_nodes = True
+    tree = scene.node_tree
+    nodes = tree.nodes
+    links = tree.links
+
+    nodes.clear()
+
+    # --- 节点创建 ---
+
+    # 渲染层输入
+    render_layers = nodes.new(type='CompositorNodeRLayers')
+    render_layers.location = (-300, 0)
+
+    # 雾的颜色 (稍微带点蓝灰，增加对比度)
+    fog_color_node = nodes.new(type='CompositorNodeRGB')
+    fog_color_node.location = (-100, 200)
+    fog_color_node.outputs[0].default_value = (*fog_color, 1.0)
+
+    # Mix 节点 (核心)
+    # 自动适配 Blender 版本差异
+    try:
+        # Blender 3.4+ / 4.0+
+        mix = nodes.new(type='CompositorNodeMix')
+        mix.data_type = 'RGBA'
+        mix.blend_type = 'MIX'
+        # 新版 Mix 节点的输入索引：0:Factor, 1:A, 2:B (如果类型是RGBA)
+        # 我们使用索引连接比使用名称更安全
+        input_fac = 0
+        input_image_a = 6 # 在某些版本RGBA模式下，A是6，B是7，或者直接按顺序
+        # 为了最安全，我们下面通过连线逻辑动态判断，或者使用 MixRGB (旧节点兼容性最好)
+    except:
+        pass
+
+    # 为了保证绝对兼容性，推荐直接使用 MixRGB (在Python API中依然可用且稳定)
+    mix = nodes.new(type='CompositorNodeMixRGB')
+    mix.blend_type = 'MIX'
+    mix.location = (100, 0)
+
+    # 输出节点
+    composite = nodes.new(type='CompositorNodeComposite')
+    composite.location = (400, 0)
+
+    # --- 节点连接 ---
+
+    # 逻辑：
+    # Factor = Mist Pass (距离越远，值越大)
+    # Input 1 (Top) = 原始图像 (近处清晰)
+    # Input 2 (Bottom) = 雾颜色 (远处全是雾)
+
+    # 1. Mist 连接到 Factor
+    links.new(render_layers.outputs['Mist'], mix.inputs['Fac'])
+
+    # 2. 原始图像 连接到 Image 1
+    links.new(render_layers.outputs['Image'], mix.inputs[1])
+
+    # 3. 雾颜色 连接到 Image 2
+    links.new(fog_color_node.outputs['RGBA'], mix.inputs[2])
+
+    # 4. 结果直接输出 (不要再 Set Alpha，让雾充满背景)
+    links.new(mix.outputs['Image'], composite.inputs['Image'])
+
+    print(f"Fog setup complete. Start: {start}, Depth: {depth}")

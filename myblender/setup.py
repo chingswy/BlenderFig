@@ -60,15 +60,57 @@ def clean_objects(name='Cube', version = '2.83') -> None:
         bpy.data.objects[name].select = True
     bpy.ops.object.delete(use_global=False)
 
-def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14), strength=4.):
-    bpy.ops.object.light_add(type='SUN', location=location, rotation=rotation)
+def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),
+                 lookat=None, strength=4.):
+    """Add a sun light to the scene.
+
+    Args:
+        name: Name of the light object
+        location: Position of the light (x, y, z)
+        rotation: Euler rotation angles (rx, ry, rz) in radians. Ignored if lookat is provided.
+        lookat: Target point (x, y, z) for the light to look at. If provided, overrides rotation.
+        strength: Light emission strength
+
+    Returns:
+        The created sun light object
+    """
+    bpy.ops.object.light_add(type='SUN', location=location)
 
     if name is not None:
         bpy.context.object.name = name
 
     sun_object = bpy.context.object
+
+    # Set rotation: use lookat if provided, otherwise use rotation
+    if lookat is not None:
+        lookat = np.array(lookat)
+        loc = np.array(location)
+        direction = Vector(lookat - loc)
+        # Point the light's '-Z' axis toward the target and use 'Y' as up
+        rot_quat = direction.to_track_quat('-Z', 'Y')
+        sun_object.rotation_euler = rot_quat.to_euler()
+    else:
+        sun_object.rotation_euler = rotation
+
     sun_object.data.use_nodes = True
     sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
+
+    return sun_object
+
+def add_area_light(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),
+                 lookat=None, strength=4.):
+    bpy.ops.object.light_add(type='AREA', location=location)
+    area_object = bpy.context.object
+    area_object.name = name
+    area_object.data.use_nodes = True
+    area_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
+    if lookat is not None:
+        lookat = np.array(lookat)
+        loc = np.array(location)
+        direction = Vector(lookat - loc)
+        rot_quat = direction.to_track_quat('-Z', 'Y')
+        area_object.rotation_euler = rot_quat.to_euler()
+    return area_object
 
 def setLight_sun(rotation_euler, strength, shadow_soft_size = 0.05):
 	x = rotation_euler[0] * 1.0 / 180.0 * np.pi
@@ -154,7 +196,7 @@ def set_cycles_renderer(scene: bpy.types.Scene,
                         use_denoising: bool = True,
                         use_motion_blur: bool = False,
                         use_transparent_bg: bool = True,
-                        prefer_cuda_use: bool = True,
+                        prefer_gpu: bool = True,
                         use_adaptive_sampling: bool = False) -> None:
     scene.camera = camera_object
 
@@ -169,14 +211,40 @@ def set_cycles_renderer(scene: bpy.types.Scene,
 
     # Enable GPU acceleration
     # Source - https://blender.stackexchange.com/a/196702
-    if prefer_cuda_use:
+    if prefer_gpu:
         bpy.context.scene.cycles.device = "GPU"
 
-        # Change the preference setting
-        try:
-            bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA"
-        except:
-            print("No CUDA device found, using CPU instead.")
+        # Try different compute device types in order of preference
+        # METAL for Mac, CUDA for NVIDIA, OPTIX for newer NVIDIA, HIP for AMD
+        import sys
+        compute_device_types = []
+        if sys.platform == "darwin":
+            # Mac uses Metal
+            compute_device_types = ["METAL", "NONE"]
+        else:
+            # Windows/Linux: try CUDA, OPTIX, HIP
+            compute_device_types = ["CUDA", "OPTIX", "HIP", "NONE"]
+
+        cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
+        device_set = False
+
+        for device_type in compute_device_types:
+            try:
+                cycles_prefs.compute_device_type = device_type
+                cycles_prefs.get_devices()
+                # Check if we have any GPU devices available
+                gpu_devices = [d for d in cycles_prefs.devices if d.type != 'CPU']
+                if gpu_devices or device_type == "NONE":
+                    print(f"Using compute device type: {device_type}")
+                    device_set = True
+                    break
+            except Exception as e:
+                print(f"Could not use {device_type}: {e}")
+                continue
+
+        if not device_set:
+            print("No GPU device found, using CPU instead.")
+            bpy.context.scene.cycles.device = "CPU"
 
     # Call get_devices() to let Blender detects GPU device (if any)
     bpy.context.preferences.addons["cycles"].preferences.get_devices()
@@ -189,7 +257,7 @@ def set_cycles_renderer(scene: bpy.types.Scene,
     print("----")
     print("The following devices will be used for path tracing:")
     for d in bpy.context.preferences.addons["cycles"].preferences.devices:
-        print("- {}".format(d["name"]))
+        print("- {} (type: {}, use: {})".format(d["name"], d["type"], d["use"]))
     print("----")
 
 def set_output_properties(scene,
@@ -225,3 +293,112 @@ def set_output_properties(scene,
         # scene.render.ffmpeg.quality = 90
     else:
         raise ValueError(f"Unsupported format: {format}")
+
+
+def render_with_progress(write_still: bool = True) -> None:
+    """
+    Render the current scene with progress display in terminal.
+
+    Args:
+        write_still: Whether to save the rendered image to file
+    """
+    import time
+
+    scene = bpy.context.scene
+    total_samples = scene.cycles.samples
+
+    # Progress tracking variables
+    render_start_time = None
+    last_progress = -1
+
+    def progress_callback(dummy):
+        nonlocal render_start_time, last_progress
+
+        if render_start_time is None:
+            render_start_time = time.time()
+
+        # Get current progress (0.0 to 1.0)
+        # In Cycles, we can estimate progress from render result
+        progress = bpy.context.scene.render.progress if hasattr(bpy.context.scene.render, 'progress') else 0
+
+        # Calculate elapsed time
+        elapsed = time.time() - render_start_time
+
+        # Create progress bar
+        bar_length = 40
+        filled = int(bar_length * progress)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        percent = progress * 100
+
+        # Estimate remaining time
+        if progress > 0.01:
+            eta = elapsed / progress * (1 - progress)
+            eta_str = f"ETA: {eta:.0f}s"
+        else:
+            eta_str = "ETA: --"
+
+        # Only print if progress changed significantly
+        current_percent = int(percent)
+        if current_percent != last_progress:
+            last_progress = current_percent
+            print(f"\r渲染进度: |{bar}| {percent:5.1f}% | 耗时: {elapsed:.0f}s | {eta_str}    ", end='', flush=True)
+
+    # Alternative: Use render handlers for progress
+    # Register a timer that checks render progress
+    print(f"\n开始渲染... (采样数: {total_samples})")
+    print(f"输出路径: {scene.render.filepath}")
+    print("-" * 60)
+
+    # For Cycles, enable progress reporting
+    if hasattr(scene.cycles, 'use_progressive_refine'):
+        scene.cycles.use_progressive_refine = True
+
+    # Use a simpler approach: render with write_still and track via handler
+    render_start = time.time()
+
+    # Define handler functions
+    def render_init(scene):
+        nonlocal render_start
+        render_start = time.time()
+        print(f"渲染初始化完成...")
+
+    def render_pre(scene):
+        print(f"开始渲染帧...")
+
+    def render_post(scene):
+        elapsed = time.time() - render_start
+        print(f"\n渲染完成! 总耗时: {elapsed:.1f}秒")
+
+    def render_stats(scene):
+        # This is called periodically during render
+        elapsed = time.time() - render_start
+        # Try to get sample info from stats
+        if hasattr(bpy.context, 'view_layer') and bpy.context.view_layer:
+            stats = scene.statistics(bpy.context.view_layer)
+            print(f"\r{stats} | 耗时: {elapsed:.0f}s    ", end='', flush=True)
+
+    # Register handlers
+    bpy.app.handlers.render_init.append(render_init)
+    bpy.app.handlers.render_pre.append(render_pre)
+    bpy.app.handlers.render_post.append(render_post)
+
+    try:
+        # Perform the render
+        bpy.ops.render.render(animation=False, write_still=write_still)
+
+        elapsed = time.time() - render_start
+        print(f"\n" + "=" * 60)
+        print(f"✓ 渲染完成!")
+        print(f"  采样数: {total_samples}")
+        print(f"  总耗时: {elapsed:.1f}秒")
+        print(f"  输出: {scene.render.filepath}")
+        print("=" * 60)
+
+    finally:
+        # Cleanup handlers
+        if render_init in bpy.app.handlers.render_init:
+            bpy.app.handlers.render_init.remove(render_init)
+        if render_pre in bpy.app.handlers.render_pre:
+            bpy.app.handlers.render_pre.remove(render_pre)
+        if render_post in bpy.app.handlers.render_post:
+            bpy.app.handlers.render_post.remove(render_post)

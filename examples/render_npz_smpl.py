@@ -21,6 +21,7 @@ from myblender.geometry import (
     set_camera,
     build_plane,
     load_smpl_npz,
+    load_fbx,
     export_smpl_npz_to_fbx
 )
 
@@ -42,6 +43,8 @@ if __name__ == '__main__':
     parser = get_parser()
     parser.add_argument('--video', type=str, default=None)
     parser.add_argument('--down', type=int, default=1)
+    parser.add_argument('--speedup', type=float, default=1.0,
+                        help='Speedup factor for animation (e.g., 2.0 means 2x faster playback by downsampling keyframes)')
     args = parse_args(parser)
 
     setup()
@@ -60,10 +63,15 @@ if __name__ == '__main__':
 
     # Import the SMPLX animation
     smplx_name = args.path
-    
+
     width, height, fps = setup_video_in_3d(args.video, down=args.down)
-    smplx_obj, key, mat = load_smpl_npz(smplx_name, default_rotation=(0., 0., 0.))
-    export_smpl_npz_to_fbx(smplx_name)
+    if smplx_name.endswith('.npz'):
+        smplx_obj, key, mat = load_smpl_npz(smplx_name, default_rotation=(0., 0., 0.), speedup=args.speedup)
+        export_smpl_npz_to_fbx(smplx_name)
+    elif smplx_name.endswith('.fbx') or smplx_name.endswith('.FBX'):
+        smplx_obj, key, mat = load_fbx(smplx_name, default_rotation=(0., 0., 0.), speedup=args.speedup)
+    else:
+        raise ValueError(f"Unsupported file format: {smplx_name}. Supported formats: .npz, .fbx")
 
     meshColor = colorObj((153/255.,  216/255.,  201/255., 1.), 0.5, 1.0, 1.0, 0.0, 2.0)
     setMat_plastic(smplx_obj, meshColor, roughness=0.9, metallic=0.5, specular=0.5)
@@ -83,7 +91,7 @@ if __name__ == '__main__':
     if not outdir.endswith(os.path.sep):
         outdir = outdir + os.path.sep
 
-    set_output_properties(bpy.context.scene, output_file_path=outdir, 
-        res_x=width, res_y=height, 
+    set_output_properties(bpy.context.scene, output_file_path=outdir,
+        res_x=width, res_y=height,
         tile_x=width//n_parallel, tile_y=height, resolution_percentage=100,
         format='JPEG')

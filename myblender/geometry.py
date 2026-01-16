@@ -114,9 +114,70 @@ def create_halfcylinder(vid, radius=1, height=2, **kwargs):
         scale=scale, location=location, **kwargs)
 
 def create_arrow(vid, start, end,
-    cylinder_radius=0.2, cone_radius=0.3,
-    cylinder_height=0.6, cone_height=0.4,):
-    scale = (cylinder_radius, cylinder_radius, cylinder_height)
+    cylinder_radius=0.02, cone_radius=0.04, cone_height=0.1,
+    shadow=False, **kwargs):
+    """Create an arrow from start to end with a cylinder shaft and cone head.
+
+    Args:
+        vid: Material/color index
+        start: Starting position (x, y, z)
+        end: End position (x, y, z)
+        cylinder_radius: Radius of the arrow shaft
+        cone_radius: Radius of the arrow head base
+        cone_height: Height of the arrow head cone
+        shadow: Whether to cast shadows
+        **kwargs: Additional arguments passed to material setup
+
+    Returns:
+        Tuple of (cylinder, cone) objects
+    """
+    start, end = np.array(start), np.array(end)
+    length = np.linalg.norm(end - start)
+
+    if length < 1e-6:
+        return None, None
+
+    direction = (end - start) / length
+
+    # Cylinder shaft (from start to end minus cone height)
+    shaft_length = max(length - cone_height, 0.01)
+    shaft_end = start + direction * shaft_length
+    shaft_center = (start + shaft_end) / 2
+
+    # Create cylinder
+    cylinder_scale = (cylinder_radius, cylinder_radius, shaft_length / 2)
+    cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
+        scale=cylinder_scale, location=shaft_center, shadow=shadow, **kwargs)
+    orient_along_direction(cylinder, direction)
+
+    # Cone head at the end
+    cone_center = shaft_end + direction * (cone_height / 2)
+    cone_scale = (cone_radius, cone_radius, cone_height / 2)
+    cone = create_any_mesh(join(assets_dir, 'cone_100.obj'), vid,
+        scale=cone_scale, location=cone_center, shadow=shadow, **kwargs)
+    orient_along_direction(cone, direction)
+
+    return cylinder, cone
+
+
+def orient_along_direction(obj, direction):
+    """Orient an object (cylinder/cone along Z-axis) to point in the given direction.
+
+    Args:
+        obj: Blender object to orient
+        direction: Target direction as numpy array or tuple (dx, dy, dz)
+    """
+    direction = np.array(direction)
+    direction = direction / np.linalg.norm(direction)
+
+    # Default cylinder/cone is along Z-axis (0, 0, 1)
+    z_axis = Vector((0, 0, 1))
+    dir_vec = Vector(direction)
+
+    # Compute rotation quaternion from Z to target direction
+    rot_quat = z_axis.rotation_difference(dir_vec)
+    obj.rotation_euler = rot_quat.to_euler()
+
 
 def look_at(obj_camera, point):
     loc_camera = obj_camera.location
@@ -126,49 +187,86 @@ def look_at(obj_camera, point):
     obj_camera.rotation_euler = rot_quat.to_euler()
 
 def create_line(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs):
+    """Create a line (cylinder) from start to end.
+
+    Args:
+        vid: Material/color index
+        radius: Radius of the line
+        start: Starting position (x, y, z)
+        end: End position (x, y, z)
+        **kwargs: Additional arguments passed to material setup
+
+    Returns:
+        The cylinder object
+    """
     start, end = np.array(start), np.array(end)
     length = np.linalg.norm(end - start)
-    scale = (radius, radius, length/2)
-    dir = end - start
-    dir /= np.linalg.norm(dir)
-    location = start + (end - start) / 2
+    if length < 1e-6:
+        return None
+    direction = (end - start) / length
+    scale = (radius, radius, length / 2)
+    location = (start + end) / 2
     cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
         scale=scale, location=location, shadow=True, **kwargs)
-    look_at(cylinder, end)
+    orient_along_direction(cylinder, direction)
+    return cylinder
 
 def create_ellipsold(vid, radius, start=(0., 0., 0.), end=(1., 1., 1.), **kwargs):
+    """Create an ellipsoid stretched from start to end.
+
+    Args:
+        vid: Material/color index
+        radius: Base radius of the ellipsoid
+        start: Starting position (x, y, z)
+        end: End position (x, y, z)
+        **kwargs: Additional arguments passed to material setup
+
+    Returns:
+        The ellipsoid object
+    """
     start, end = np.array(start), np.array(end)
     length = np.linalg.norm(end - start)
+    if length < 1e-6:
+        return None
+    direction = (end - start) / length
     radius = radius * length / 0.2
-    scale = (radius, radius, length/2)
-    dir = end - start
-    dir /= np.linalg.norm(dir)
-    location = start + (end - start) / 2
-    cylinder = create_any_mesh(join(assets_dir, 'sphere.obj'), vid,
+    scale = (radius, radius, length / 2)
+    location = (start + end) / 2
+    ellipsoid = create_any_mesh(join(assets_dir, 'sphere.obj'), vid,
         scale=scale, location=location, **kwargs)
-    look_at(cylinder, end)
-    return cylinder
+    orient_along_direction(ellipsoid, direction)
+    return ellipsoid
 
 def create_ray(vid, start=(0., 0., 0.), end=(1., 1., 1.),
     cone_radius=0.03, cone_height=0.1,
-    cylinder_radius=0.01, length_scale=1.0):
-    start, end = np.array(start), np.array(end)
-    length = np.linalg.norm(end - start)
-    true_end = start + (end - start) * length_scale
-    scale = (cylinder_radius, cylinder_radius, length/2 * length_scale)
-    dir = end - start
-    dir /= np.linalg.norm(dir)
-    location = start + (true_end - start) / 2
-    # disable shadow for ray
-    cylinder = create_any_mesh(join(assets_dir, 'cylinder_100.obj'), vid,
-        scale=scale, location=location, shadow=False)
-    cone_scale = (cone_radius, cone_radius, cone_height)
-    cone_location = true_end + dir * cone_height * 0.01
-    cone = create_any_mesh(join(assets_dir, 'cone_100.obj'), vid,
-        scale=cone_scale, location=cone_location, shadow=False)
-    look_at(cylinder, true_end)
-    look_at(cone, true_end)
-    # set_material_rgb(bpy.data.materials[matname], [0, 0, 0])
+    cylinder_radius=0.01, shadow=False, **kwargs):
+    """Create a ray (arrow) from start to end.
+
+    This is an alias for create_arrow with default parameters suitable for rays.
+
+    Args:
+        vid: Material/color index
+        start: Starting position (x, y, z)
+        end: End position (x, y, z)
+        cone_radius: Radius of the arrow head base
+        cone_height: Height of the arrow head cone
+        cylinder_radius: Radius of the ray shaft
+        shadow: Whether to cast shadows (default False for rays)
+        **kwargs: Additional arguments passed to material setup
+
+    Returns:
+        Tuple of (cylinder, cone) objects
+    """
+    return create_arrow(
+        vid=vid,
+        start=start,
+        end=end,
+        cylinder_radius=cylinder_radius,
+        cone_radius=cone_radius,
+        cone_height=cone_height,
+        shadow=shadow,
+        **kwargs
+    )
 
 def _create_image(imgname, remove_shadow=False):
     filename = join(assets_dir, 'background.obj')
@@ -230,19 +328,35 @@ def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
         camera.keyframe_insert(data_path="rotation_euler", frame=frame)
     return camera
 
-def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.) -> None:
+def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.,
+    white_color=(1, 1, 1, 1), black_color=(0, 0, 0, 1),
+    roughness: float=0.5, metallic: float=0.0, specular: float=0.5) -> None:
+    """
+    Build checkerboard nodes for a plane.
+
+    Args:
+        node_tree: The node tree to build nodes in
+        size: Scale of the checker pattern
+        alpha: Transparency (1.0 = opaque)
+        white_color: Color for white squares
+        black_color: Color for black squares
+        roughness: Surface roughness (0.0 = mirror-like, 1.0 = matte)
+        metallic: Metallic property (0.0 = dielectric, 1.0 = metallic)
+        specular: Specular reflection intensity
+    """
     output_node = node_tree.nodes.new(type='ShaderNodeOutputMaterial')
     principled_node = node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     checker_texture_node = node_tree.nodes.new(type='ShaderNodeTexChecker')
 
-    set_principled_node(principled_node=principled_node, alpha=alpha)
+    set_principled_node(principled_node=principled_node, alpha=alpha,
+                       roughness=roughness, metallic=metallic, specular=specular)
     checker_texture_node.inputs['Scale'].default_value = size
 
     node_tree.links.new(checker_texture_node.outputs['Color'], principled_node.inputs['Base Color'])
     node_tree.links.new(principled_node.outputs['BSDF'], output_node.inputs['Surface'])
 
-    # node_tree.nodes["Checker Texture"].inputs[1].default_value = (1, 1, 1, 1)
-    # node_tree.nodes["Checker Texture"].inputs[2].default_value = (0.3, 0.8, 0.2, 1)
+    node_tree.nodes["Checker Texture"].inputs[1].default_value = white_color
+    node_tree.nodes["Checker Texture"].inputs[2].default_value = black_color
 
     # arrange_nodes(node_tree)
 
@@ -280,14 +394,33 @@ def create_plane_blender(location = (0.0, 0.0, 0.0),
             current_object.cycles_visibility.shadow = False
     return current_object
 
-def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transparent=False, white=(1.,1.,1.,1.), black=(0.,0.,0.,0.)):
+def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transparent=False,
+                white=(1.,1.,1.,1.), black=(0.,0.,0.,0.),
+                roughness=0.5, metallic=0.0, specular=0.5):
+    """
+    Build a checkerboard plane.
+
+    Args:
+        translation: Position of the plane
+        plane_size: Size of the plane
+        alpha: Transparency (1.0 = opaque)
+        use_transparent: Use transparent shader instead of principled BSDF
+        white: Color for white squares
+        black: Color for black squares
+        roughness: Surface roughness (0.0 = mirror-like reflection, 1.0 = matte)
+        metallic: Metallic property (0.0 = dielectric, 1.0 = metallic)
+        specular: Specular reflection intensity
+    """
     plane = create_plane_blender(size=plane_size, name="Floor")
     plane.location = translation
     floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=True)
     if use_transparent:
-        build_checker_board_transparent_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
+        build_checker_board_transparent_nodes(floor_mat.node_tree, plane_size, alpha=alpha,
+        white_color=white, black_color=black)
     else:
-        build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha)
+        build_checker_board_nodes(floor_mat.node_tree, plane_size, alpha=alpha,
+        white_color=white, black_color=black,
+        roughness=roughness, metallic=metallic, specular=specular)
     plane.data.materials.append(floor_mat)
     return plane
 
@@ -357,6 +490,83 @@ def create_camera_blender(R, T, scale=0.1, pid=0):
     obj.rotation_euler = Matrix(R.T).to_euler()
     if hasattr(obj, 'visible_shadow'):
         obj.visible_shadow = False
+    return obj
+
+
+def create_camera_blender_animated(camera_RT, scale=0.1, pid=0, start_frame=0, convert_axis=True):
+    """Create an animated camera visualization from world_to_camera matrices.
+
+    Args:
+        camera_RT: numpy array of shape (num_frames, 3, 4) or (num_frames, 4, 4)
+                   containing [R|T] matrices in world_to_camera format
+        scale: scale of the camera visualization object
+        pid: material/color index for the camera object
+        start_frame: starting frame number for the animation
+        convert_axis: if True, convert from Y-up to Z-up coordinate system
+                      (needed when FBX import uses Blender's default Z-up but camera data is Y-up)
+
+    Returns:
+        obj: the created camera visualization object
+    """
+    # Coordinate system conversion matrix from Y-up to Z-up
+    # This rotates -90 degrees around X axis: new_Y = -old_Z, new_Z = old_Y
+    if convert_axis:
+        # Y-up to Z-up transformation matrix
+        axis_convert = np.array([
+            [1,  0,  0],
+            [0,  0,  1],
+            [0, -1,  0]
+        ], dtype=np.float64)
+    else:
+        axis_convert = np.eye(3)
+
+    bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD')
+    obj = bpy.context.object
+    obj.scale = (scale, scale, scale)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    for i in [0, 2, 4, 6]:
+        bm.verts[i].select_set(True)
+    bmesh.update_edit_mesh(obj.data)
+    bpy.ops.mesh.merge(type='CENTER')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    bpy.ops.object.modifier_add(type='WIREFRAME')
+    obj.modifiers["Wireframe"].thickness = 0.1
+    add_material_to_blender_primitive(obj, pid)
+    if hasattr(obj, 'visible_shadow'):
+        obj.visible_shadow = False
+
+    # Animate the camera for each frame
+    num_frames = camera_RT.shape[0]
+    for frame_idx in range(num_frames):
+        R = camera_RT[frame_idx, :3, :3]
+        T = camera_RT[frame_idx, :3, 3:4]
+
+        # Convert world_to_camera to camera position and orientation
+        # camera_position = -R^T @ T (in original coordinate system)
+        center_original = - R.T @ T
+
+        # Apply coordinate system conversion
+        # Transform the camera center position
+        center = axis_convert @ center_original
+
+        # Transform the rotation matrix: R_new = axis_convert @ R @ axis_convert.T
+        R_converted = axis_convert @ R @ axis_convert.T
+
+        obj.location = (center[0, 0], center[1, 0], center[2, 0])
+        obj.rotation_euler = Matrix(R_converted.T).to_euler()
+
+        # Insert keyframes
+        frame = start_frame + frame_idx
+        obj.keyframe_insert(data_path="location", frame=frame)
+        obj.keyframe_insert(data_path="rotation_euler", frame=frame)
+
+    print(f"Created animated camera visualization with {num_frames} frames (axis_convert={convert_axis})")
+    return obj
 
 def load_humanmesh(filename, pid, meshColor=None, translation=None, rotation=None, with_bbox=True):
     assert filename.endswith('.obj'), filename
@@ -385,7 +595,14 @@ def load_humanmesh(filename, pid, meshColor=None, translation=None, rotation=Non
     return obj
 
 
-def load_smpl_npz(filename, default_rotation=(0., 0., 0.)):
+def load_smpl_npz(filename, default_rotation=(0., 0., 0.), speedup=1.0):
+    """Load SMPL NPZ file and return the mesh object, key, and material name.
+
+    Args:
+        filename: Path to NPZ file
+        default_rotation: Default rotation for the object
+        speedup: Speedup factor for animation (e.g., 2.0 means 2x faster)
+    """
     keys_old = set(bpy.data.objects.keys())
     mat_old = set(bpy.data.materials.keys())
     image_old = set(bpy.data.images.keys())
@@ -416,7 +633,162 @@ def load_smpl_npz(filename, default_rotation=(0., 0., 0.)):
                 smplx_obj = obj
                 break
 
+    # Check if there's animation and downsample if needed
+    scene = bpy.context.scene
+    if speedup > 1.0 and scene.frame_end > scene.frame_start:
+        # Check if any object has animation
+        has_animation = False
+        for obj in bpy.data.objects:
+            if obj.animation_data and obj.animation_data.action:
+                has_animation = True
+                break
+
+        if has_animation:
+            downsample_animation(speedup)
+
     return smplx_obj, key, mat
+
+def downsample_animation(speedup=2.0):
+    """Downsample animation keyframes to speed up playback.
+
+    Args:
+        speedup: Speedup factor (e.g., 2.0 means 2x faster, keeping every Nth frame)
+    """
+    if speedup <= 1.0:
+        return
+
+    speedup = int(speedup)
+    scene = bpy.context.scene
+    original_frame_start = scene.frame_start
+    original_frame_end = scene.frame_end
+
+    # Find all objects with animation
+    animated_objects = []
+    for obj in bpy.data.objects:
+        if obj.animation_data and obj.animation_data.action:
+            animated_objects.append(obj)
+
+    if not animated_objects:
+        print("No animated objects found for downsampling")
+        return
+
+    # Calculate new frame range
+    new_frame_start = original_frame_start
+    new_frame_end = original_frame_start + (original_frame_end - original_frame_start) // speedup
+
+    # Downsample keyframes for each animated object
+    for obj in animated_objects:
+        action = obj.animation_data.action
+        if not action:
+            continue
+
+        # Process each fcurve (animation channel)
+        for fcurve in action.fcurves:
+            keyframe_points = fcurve.keyframe_points
+
+            if len(keyframe_points) == 0:
+                continue
+
+            # Collect indices of keyframes to keep (every Nth frame)
+            indices_to_keep = list(range(0, len(keyframe_points), speedup))
+            # Always keep the last frame
+            if len(keyframe_points) - 1 not in indices_to_keep:
+                indices_to_keep.append(len(keyframe_points) - 1)
+            indices_to_keep = sorted(set(indices_to_keep))
+
+            # Remap frames for keyframes we're keeping
+            for idx in indices_to_keep:
+                kp = keyframe_points[idx]
+                original_frame = kp.co[0]
+                new_frame = new_frame_start + (original_frame - original_frame_start) // speedup
+                # Update frame number
+                kp.co[0] = new_frame
+                kp.handle_left[0] = new_frame
+                kp.handle_right[0] = new_frame
+
+            # Remove keyframes that are not in indices_to_keep (in reverse order)
+            for idx in reversed(range(len(keyframe_points))):
+                if idx not in indices_to_keep:
+                    keyframe_points.remove(keyframe_points[idx])
+
+    # Update scene frame range
+    scene.frame_start = new_frame_start
+    scene.frame_end = new_frame_end
+
+    print(f"Animation downsampled by {speedup}x: frames {original_frame_start}-{original_frame_end} -> {new_frame_start}-{new_frame_end}")
+
+def load_fbx(filename, default_rotation=(0., 0., 0.), speedup=1.0):
+    """Load FBX file and return the mesh object, key, and material name.
+
+    Args:
+        filename: Path to FBX file
+        default_rotation: Default rotation for the object
+        speedup: Speedup factor for animation (e.g., 2.0 means 2x faster)
+    """
+    keys_old = set(bpy.data.objects.keys())
+    mat_old = set(bpy.data.materials.keys())
+    image_old = set(bpy.data.images.keys())
+
+    if filename.endswith('.fbx') or filename.endswith('.FBX'):
+        bpy.ops.import_scene.fbx(filepath=filename)
+
+    keys_new = set(bpy.data.objects.keys())
+    mat_new = set(bpy.data.materials.keys())
+    image_new = set(bpy.data.images.keys())
+
+    # Get imported object names
+    obj_names = [o.name for o in bpy.context.selected_objects]
+    if not obj_names:
+        # If no objects are selected, get all newly imported objects
+        obj_names = list(keys_new - keys_old)
+
+    # Find armature and mesh objects
+    armature = None
+    mesh_object = None
+    mesh_object_list = []
+
+    for obj_name in obj_names:
+        obj = bpy.data.objects[obj_name]
+        if obj.type == 'ARMATURE' or (obj.animation_data and obj.animation_data.action):
+            armature = obj
+        if obj.type == 'MESH' and mesh_object is None:
+            mesh_object = obj
+        if obj.type == 'MESH':
+            mesh_object_list.append(obj)
+
+    # Set scene frame range if armature has animation
+    if armature and armature.animation_data and armature.animation_data.action:
+        action = armature.animation_data.action
+        frame_start = int(action.frame_range[0])
+        frame_end = int(action.frame_range[1])
+        bpy.context.scene.frame_start = frame_start
+        bpy.context.scene.frame_end = frame_end
+        print(f"Animation frames set: {frame_start} to {frame_end}")
+
+        # Downsample animation if speedup > 1.0
+        if speedup > 1.0:
+            downsample_animation(speedup)
+
+    # Use the first mesh object, or armature if no mesh found
+    if mesh_object:
+        current_obj = mesh_object
+    elif armature:
+        current_obj = armature
+    else:
+        # Fallback to first imported object
+        current_obj = bpy.data.objects[list(keys_new - keys_old)[0]]
+
+    current_obj.rotation_euler = default_rotation
+
+    key = current_obj.name
+    key_image = list(image_new - image_old)
+    if len(key_image) > 0:
+        print('>>> Loading image {}'.format(key_image[0]))
+        key = (key, key_image[0])
+
+    mat = list(mat_new - mat_old)[0] if (mat_new - mat_old) else None
+
+    return current_obj, key, mat
 
 def export_smpl_npz_to_fbx(filename):
     # Select all objects in the scene
