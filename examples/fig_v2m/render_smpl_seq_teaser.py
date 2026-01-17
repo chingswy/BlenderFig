@@ -980,8 +980,54 @@ def add_root_trajectory(armature_list, start_color=(0.2, 0.6, 1.0, 1.0), end_col
                 arrow_obj.rotation_euler = (math.pi, 0, 0)
             arrow_obj.location = arrow_pos + arrow_dir * (arrow_height * 0.5)
 
-        # Apply same material to arrow
-        arrow_obj.data.materials.append(mat)
+        # Create solid color material for arrow (using end_color, no gradient)
+        arrow_mat_name = f"{curve_name}_Arrow_Material"
+        arrow_mat = bpy.data.materials.new(name=arrow_mat_name)
+        arrow_mat.use_nodes = True
+
+        # Enable transparency if alpha < 1
+        if alpha < 1.0:
+            arrow_mat.blend_method = 'BLEND'
+            arrow_mat.shadow_method = 'HASHED'
+
+        arrow_nodes = arrow_mat.node_tree.nodes
+        arrow_links = arrow_mat.node_tree.links
+
+        # Clear default nodes
+        arrow_nodes.clear()
+
+        # Output node
+        arrow_output = arrow_nodes.new(type='ShaderNodeOutputMaterial')
+        arrow_output.location = (600, 0)
+
+        # Mix Shader to combine emission with principled for nice glow effect
+        arrow_mix_shader = arrow_nodes.new(type='ShaderNodeMixShader')
+        arrow_mix_shader.location = (400, 0)
+        arrow_mix_shader.inputs['Fac'].default_value = 0.7  # More emission than diffuse
+
+        # Principled BSDF for base color
+        arrow_principled = arrow_nodes.new(type='ShaderNodeBsdfPrincipled')
+        arrow_principled.location = (200, -150)
+        arrow_principled.inputs['Roughness'].default_value = 0.3
+        arrow_principled.inputs['Metallic'].default_value = 0.2
+        arrow_principled.inputs['Alpha'].default_value = alpha  # Set transparency
+        arrow_principled.inputs['Base Color'].default_value = end_color  # Use end_color as solid color
+
+        # Emission shader for glow effect
+        arrow_emission = arrow_nodes.new(type='ShaderNodeEmission')
+        arrow_emission.location = (200, 100)
+        arrow_emission.inputs['Strength'].default_value = emission_strength
+        arrow_emission.inputs['Color'].default_value = end_color  # Use end_color as solid color
+
+        # Connect shaders to mix
+        arrow_links.new(arrow_principled.outputs['BSDF'], arrow_mix_shader.inputs[1])
+        arrow_links.new(arrow_emission.outputs['Emission'], arrow_mix_shader.inputs[2])
+
+        # Connect to output
+        arrow_links.new(arrow_mix_shader.outputs['Shader'], arrow_output.inputs['Surface'])
+
+        # Apply solid color material to arrow
+        arrow_obj.data.materials.append(arrow_mat)
         print(f"Added arrowhead at end of trajectory '{curve_name}'")
 
     print(f"Root trajectory '{curve_name}' created with {len(positions)} points, alpha={alpha}, gradient from {start_color[:3]} to {end_color[:3]}")

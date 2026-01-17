@@ -211,6 +211,7 @@ def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plas
         color = get_rgb(pid)
     else:
         color = get_rgb(pid)
+    print(f"Setting material color: {color}")
     if not use_plastic:
         # Handle both mesh objects and material objects
         if isinstance(mat, bpy.types.Object):
@@ -292,6 +293,36 @@ def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
     fog_color_node.location = (-100, 200)
     fog_color_node.outputs[0].default_value = (*fog_color, 1.0)
 
+    # 添加 Bright/Contrast 节点来增强雾色亮度，确保呈现明亮的白色
+    bright_contrast = nodes.new(type='CompositorNodeBrightContrast')
+    bright_contrast.location = (0, 200)
+    bright_contrast.inputs['Bright'].default_value = 0.3  # 增加亮度
+    bright_contrast.inputs['Contrast'].default_value = 0.0  # 保持对比度不变
+
+    # 添加 Math 节点来增强 Mist pass 强度，使雾更快达到全强度
+    # 使用公式：clamp((value - 0.3) / 0.7, 0, 1) 将 [0.3, 1.0] 映射到 [0.0, 1.0]
+    # 这样雾会在更近的距离达到全强度
+    math_subtract = nodes.new(type='CompositorNodeMath')
+    math_subtract.location = (-300, 0)
+    math_subtract.operation = 'SUBTRACT'
+    math_subtract.inputs[1].default_value = 0.3  # 减去 0.3
+    
+    math_divide = nodes.new(type='CompositorNodeMath')
+    math_divide.location = (-200, 0)
+    math_divide.operation = 'DIVIDE'
+    math_divide.inputs[1].default_value = 0.7  # 除以 0.7 (1.0 - 0.3)
+    
+    # 使用 MAXIMUM 和 MINIMUM 来实现 clamp 功能
+    math_max = nodes.new(type='CompositorNodeMath')
+    math_max.location = (-100, 0)
+    math_max.operation = 'MAXIMUM'
+    math_max.inputs[1].default_value = 0.0  # 确保最小值是 0
+    
+    math_min = nodes.new(type='CompositorNodeMath')
+    math_min.location = (-50, 0)
+    math_min.operation = 'MINIMUM'
+    math_min.inputs[1].default_value = 1.0  # 确保最大值是 1
+
     # Mix 节点 (核心)
     # 自动适配 Blender 版本差异
     try:
@@ -319,18 +350,23 @@ def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
     # --- 节点连接 ---
 
     # 逻辑：
-    # Factor = Mist Pass (距离越远，值越大)
+    # Factor = Mist Pass (经过 Math 节点增强，距离越远，值越大)
     # Input 1 (Top) = 原始图像 (近处清晰)
-    # Input 2 (Bottom) = 雾颜色 (远处全是雾)
+    # Input 2 (Bottom) = 雾颜色 (经过 Bright/Contrast 增强，远处全是雾)
 
-    # 1. Mist 连接到 Factor
-    links.new(render_layers.outputs['Mist'], mix.inputs['Fac'])
+    # 1. Mist 经过 Math 节点处理：subtract(0.3) -> divide(0.7) -> max(0) -> min(1)，然后连接到 Factor
+    links.new(render_layers.outputs['Mist'], math_subtract.inputs[0])
+    links.new(math_subtract.outputs['Value'], math_divide.inputs[0])
+    links.new(math_divide.outputs['Value'], math_max.inputs[0])
+    links.new(math_max.outputs['Value'], math_min.inputs[0])
+    links.new(math_min.outputs['Value'], mix.inputs['Fac'])
 
     # 2. 原始图像 连接到 Image 1
     links.new(render_layers.outputs['Image'], mix.inputs[1])
 
-    # 3. 雾颜色 连接到 Image 2
-    links.new(fog_color_node.outputs['RGBA'], mix.inputs[2])
+    # 3. 雾颜色 经过 Bright/Contrast 增强后连接到 Image 2
+    links.new(fog_color_node.outputs['RGBA'], bright_contrast.inputs['Image'])
+    links.new(bright_contrast.outputs['Image'], mix.inputs[2])
 
     # 4. 结果直接输出 (不要再 Set Alpha，让雾充满背景)
     links.new(mix.outputs['Image'], composite.inputs['Image'])
