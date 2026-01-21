@@ -8,6 +8,8 @@ export PYTHONPATH=.
 
 # 列出所有可用任务
 python examples/fig_v2m/render_scheduler.py --config examples/fig_v2m/render_config.json --list
+python examples/fig_v2m/render_scheduler.py --config examples/fig_v2m/render_config_simple.json --list
+python examples/fig_v2m/render_scheduler.py --config examples/fig_v2m/render_config_simple.json --all --blender ${blender}
 
 # 运行指定任务 (使用 8 GPU 并行)
 python examples/fig_v2m/render_scheduler.py \
