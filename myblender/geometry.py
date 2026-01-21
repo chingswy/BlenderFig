@@ -150,14 +150,134 @@ def create_arrow(vid, start, end,
         scale=cylinder_scale, location=shaft_center, shadow=shadow, **kwargs)
     orient_along_direction(cylinder, direction)
 
-    # Cone head at the end
-    cone_center = shaft_end + direction * (cone_height / 2)
+    # Cone head at the end (cone origin is at its base, not center)
+    cone_center = shaft_end
     cone_scale = (cone_radius, cone_radius, cone_height / 2)
     cone = create_any_mesh(join(assets_dir, 'cone_100.obj'), vid,
         scale=cone_scale, location=cone_center, shadow=shadow, **kwargs)
     orient_along_direction(cone, direction)
 
     return cylinder, cone
+
+
+def _set_simple_color(obj, color):
+    """Set a simple solid color on an object using Principled BSDF.
+    
+    Args:
+        obj: Blender mesh object
+        color: RGB tuple (r, g, b) with values 0-1
+    """
+    mat = bpy.data.materials.new(name="SimpleColor")
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs['Base Color'].default_value = (color[0], color[1], color[2], 1.0)
+    bsdf.inputs['Roughness'].default_value = 0.5
+    bsdf.inputs['Metallic'].default_value = 0.0
+    
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+    obj.active_material = mat
+
+
+def create_simple_arrow(start, end, color=(1, 0, 0),
+    cylinder_radius=0.02, cone_radius=0.04, cone_height=0.1):
+    """Create a simple arrow with pure RGB color.
+
+    Args:
+        start: Starting position (x, y, z)
+        end: End position (x, y, z)
+        color: RGB tuple (r, g, b) with values 0-1, e.g. (1,0,0) for red
+        cylinder_radius: Radius of the arrow shaft
+        cone_radius: Radius of the arrow head base
+        cone_height: Height of the arrow head cone
+
+    Returns:
+        Tuple of (cylinder, cone) objects
+    """
+    start, end = np.array(start), np.array(end)
+    length = np.linalg.norm(end - start)
+
+    if length < 1e-6:
+        return None, None
+
+    direction = (end - start) / length
+
+    # Cylinder shaft
+    shaft_length = max(length - cone_height, 0.01)
+    shaft_end = start + direction * shaft_length
+    shaft_center = (start + shaft_end) / 2
+
+    # Create cylinder using Blender primitive
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=cylinder_radius,
+        depth=shaft_length,
+        location=shaft_center
+    )
+    cylinder = bpy.context.object
+    orient_along_direction(cylinder, direction)
+    _set_simple_color(cylinder, color)
+    cylinder.visible_shadow = False
+
+    # Create cone
+    bpy.ops.mesh.primitive_cone_add(
+        radius1=cone_radius,
+        radius2=0,
+        depth=cone_height,
+        location=shaft_end + direction * cone_height / 2
+    )
+    cone = bpy.context.object
+    orient_along_direction(cone, direction)
+    _set_simple_color(cone, color)
+    cone.visible_shadow = False
+
+    return cylinder, cone
+
+
+def create_coordinate_axes(origin=(0, 0, 0), length=1.0,
+    cylinder_radius=0.02, cone_radius=0.04, cone_height=0.1):
+    """Create RGB coordinate axes (X=Red, Y=Green, Z=Blue).
+
+    Args:
+        origin: Origin point of the axes
+        length: Length of each axis
+        cylinder_radius: Radius of the arrow shaft
+        cone_radius: Radius of the arrow head base
+        cone_height: Height of the arrow head cone
+
+    Returns:
+        Dict with 'x', 'y', 'z' keys, each containing (cylinder, cone) tuple
+    """
+    origin = np.array(origin)
+    
+    axes = {}
+    # X axis - Red
+    axes['x'] = create_simple_arrow(
+        origin, origin + np.array([length, 0, 0]),
+        color=(1, 0, 0),
+        cylinder_radius=cylinder_radius,
+        cone_radius=cone_radius,
+        cone_height=cone_height
+    )
+    # Y axis - Green
+    axes['y'] = create_simple_arrow(
+        origin, origin + np.array([0, length, 0]),
+        color=(0, 1, 0),
+        cylinder_radius=cylinder_radius,
+        cone_radius=cone_radius,
+        cone_height=cone_height
+    )
+    # Z axis - Blue
+    axes['z'] = create_simple_arrow(
+        origin, origin + np.array([0, 0, length]),
+        color=(0, 0, 1),
+        cylinder_radius=cylinder_radius,
+        cone_radius=cone_radius,
+        cone_height=cone_height
+    )
+    
+    return axes
 
 
 def orient_along_direction(obj, direction):
@@ -327,6 +447,7 @@ def set_camera(height=5., radius = 9, focal=40, center=(0., 0., 0.),
         camera.keyframe_insert(data_path="location", frame=frame)
         camera.keyframe_insert(data_path="rotation_euler", frame=frame)
     return camera
+    
 
 def build_checker_board_nodes(node_tree: bpy.types.NodeTree, size: float, alpha: float=1.,
     white_color=(1, 1, 1, 1), black_color=(0, 0, 0, 1),
@@ -912,3 +1033,265 @@ def addGround(location=(0, 0, 0), groundSize=100, shadowBrightness=0.7, normal_a
         tree.links.new(bsdf_node.outputs["BSDF"], tree.nodes["Material Output"].inputs["Surface"])
 
     return ground
+
+
+def add_root_trajectory(positions, start_color=(0.2, 0.6, 1.0, 1.0), end_color=(1.0, 0.3, 0.5, 1.0),
+                        line_thickness=0.02, emission_strength=3.0, pelvis_height=1.0,
+                        alpha=1.0, curve_name="RootTrajectory",
+                        extend_start=0.6, extend_end=0.6, add_arrow=True, arrow_scale=1.0):
+    """
+    Add a colorful gradient trajectory line connecting the root/pelvis positions of multiple characters.
+    This emphasizes "Global Motion" and "Dynamics" by showing the movement path in world space.
+
+    Args:
+        armature_list: List of (armature, mesh_object_list) tuples from load_fbx_at_frame
+        start_color: RGBA color at the beginning of trajectory (default: cyan blue)
+        end_color: RGBA color at the end of trajectory (default: magenta pink)
+        line_thickness: Thickness of the trajectory line
+        emission_strength: Emission strength for the glowing effect
+        pelvis_height: Height of the pelvis/root joint from ground (default: 1.0m)
+        alpha: Transparency value (0=fully transparent, 1=opaque)
+        curve_name: Name for the curve object
+        extend_start: How much to extend the trajectory before the first point (in meters)
+        extend_end: How much to extend the trajectory after the last point (in meters)
+        add_arrow: Whether to add an arrowhead at the end
+        arrow_scale: Scale factor for the arrowhead size
+
+    Returns:
+        The created curve object
+    """
+    from mathutils import Vector
+
+    # IMPORTANT: Update scene and dependency graph to ensure all armature poses are evaluated
+    # This is critical for getting correct bone positions, especially for the last imported armature
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    # Extend trajectory at the start (before first point)
+    if extend_start > 0 and len(positions) >= 2:
+        start_dir = (positions[0] - positions[1]).normalized()
+        extended_start = positions[0] + start_dir * extend_start
+        positions.insert(0, extended_start)
+        print(f"Extended trajectory start by {extend_start}m")
+
+    # Extend trajectory at the end (after last point)
+    if extend_end > 0 and len(positions) >= 2:
+        end_dir = (positions[-1] - positions[-2]).normalized()
+        extended_end = positions[-1] + end_dir * extend_end
+        positions.append(extended_end)
+        print(f"Extended trajectory end by {extend_end}m")
+
+    # Detect trajectory direction and adjust color mapping if reversed
+    # This ensures color gradient matches visual direction regardless of default_trans sign
+    if len(positions) >= 2:
+        x_start = positions[0].x
+        x_end = positions[-1].x
+        is_reversed = x_end < x_start  # If end x < start x, trajectory goes right to left
+        
+        if is_reversed:
+            # Swap color mapping so visual start uses start_color and visual end uses end_color
+            start_color, end_color = end_color, start_color
+            print(f"Trajectory is reversed (right to left), swapping colors")
+    
+    # Arrow color should match the curve end color (after potential swap)
+    arrow_color = start_color
+
+    # Create a curve for the trajectory
+    curve_data = bpy.data.curves.new(curve_name, type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.resolution_u = 12
+    curve_data.bevel_depth = line_thickness
+    curve_data.bevel_resolution = 4
+    curve_data.fill_mode = 'FULL'
+
+    # Create a smooth spline through all positions
+    spline = curve_data.splines.new('BEZIER')
+    spline.bezier_points.add(len(positions) - 1)
+
+    for i, pos in enumerate(positions):
+        bp = spline.bezier_points[i]
+        bp.co = pos
+        bp.handle_left_type = 'AUTO'
+        bp.handle_right_type = 'AUTO'
+
+    # Create the curve object
+    curve_obj = bpy.data.objects.new(curve_name, curve_data)
+    bpy.context.collection.objects.link(curve_obj)
+
+    # Create gradient emission material using curve parameter
+    mat_name = f"{curve_name}_Material"
+    mat = bpy.data.materials.new(name=mat_name)
+    mat.use_nodes = True
+
+    # Enable transparency if alpha < 1
+    if alpha < 1.0:
+        mat.blend_method = 'BLEND'
+        mat.shadow_method = 'HASHED'
+
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    # Clear default nodes
+    nodes.clear()
+
+    # Output node
+    output = nodes.new(type='ShaderNodeOutputMaterial')
+    output.location = (600, 0)
+
+    # Mix Shader to combine emission with principled for nice glow effect
+    mix_shader = nodes.new(type='ShaderNodeMixShader')
+    mix_shader.location = (400, 0)
+    mix_shader.inputs['Fac'].default_value = 0.7  # More emission than diffuse
+
+    # Principled BSDF for base color
+    principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    principled.location = (200, -150)
+    principled.inputs['Roughness'].default_value = 0.3
+    principled.inputs['Metallic'].default_value = 0.2
+    principled.inputs['Alpha'].default_value = alpha  # Set transparency
+
+    # Emission shader for glow effect
+    emission = nodes.new(type='ShaderNodeEmission')
+    emission.location = (200, 100)
+    emission.inputs['Strength'].default_value = emission_strength
+
+    # Color Ramp for gradient
+    color_ramp = nodes.new(type='ShaderNodeValToRGB')
+    color_ramp.location = (-100, 0)
+    # Set gradient colors (start to end)
+    color_ramp.color_ramp.elements[0].color = start_color
+    color_ramp.color_ramp.elements[1].color = end_color
+    # Add middle color for more vibrant transition
+    mid_elem = color_ramp.color_ramp.elements.new(0.5)
+    mid_color = (
+        (start_color[0] + end_color[0]) * 0.5 + 0.2,  # Slightly boosted
+        (start_color[1] + end_color[1]) * 0.3,
+        (start_color[2] + end_color[2]) * 0.6,
+        1.0
+    )
+    mid_elem.color = mid_color
+
+    # Spline Parameter node (gives 0-1 along the curve)
+    # For curves, we can use the Generated texture coordinate's X component
+    tex_coord = nodes.new(type='ShaderNodeTexCoord')
+    tex_coord.location = (-500, 0)
+
+    # Separate XYZ to get the spline parameter
+    separate_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
+    separate_xyz.location = (-300, 0)
+
+    # Connect nodes
+    # Use Generated coordinates X for curve parameter (0-1 along spline)
+    links.new(tex_coord.outputs['Generated'], separate_xyz.inputs['Vector'])
+    links.new(separate_xyz.outputs['X'], color_ramp.inputs['Fac'])
+
+    # Connect color to both emission and principled
+    links.new(color_ramp.outputs['Color'], emission.inputs['Color'])
+    links.new(color_ramp.outputs['Color'], principled.inputs['Base Color'])
+
+    # Connect shaders to mix
+    links.new(principled.outputs['BSDF'], mix_shader.inputs[1])
+    links.new(emission.outputs['Emission'], mix_shader.inputs[2])
+
+    # Connect to output
+    links.new(mix_shader.outputs['Shader'], output.inputs['Surface'])
+
+    # Apply material to curve
+    curve_obj.data.materials.append(mat)
+
+    # Add arrowhead at the end of trajectory
+    arrow_obj = None
+    if add_arrow and len(positions) >= 2:
+        # Calculate arrow direction (pointing in the direction of motion)
+        arrow_dir = (positions[-1] - positions[-2]).normalized()
+        arrow_pos = positions[-1]
+
+        # Create a cone for the arrowhead
+        arrow_height = line_thickness * 8 * arrow_scale
+        arrow_radius = line_thickness * 2 * arrow_scale
+
+        bpy.ops.mesh.primitive_cone_add(
+            vertices=16,
+            radius1=arrow_radius,
+            radius2=0,
+            depth=arrow_height,
+            location=arrow_pos
+        )
+        arrow_obj = bpy.context.active_object
+        arrow_obj.name = f"{curve_name}_Arrow"
+
+        # Rotate arrow to point in the direction of motion
+        # Default cone points in +Z, we need to align it with arrow_dir
+        from mathutils import Matrix
+        import math
+
+        # Calculate rotation to align Z-axis with arrow_dir
+        z_axis = Vector((0, 0, 1))
+        rotation_axis = z_axis.cross(arrow_dir)
+        if rotation_axis.length > 0.0001:
+            rotation_axis.normalize()
+            angle = math.acos(max(-1, min(1, z_axis.dot(arrow_dir))))
+            rot_matrix = Matrix.Rotation(angle, 4, rotation_axis)
+            arrow_obj.matrix_world = Matrix.Translation(arrow_pos) @ rot_matrix
+
+            # Offset arrow so its base is at the curve end
+            arrow_obj.location = arrow_pos + arrow_dir * (arrow_height * 0.5)
+        else:
+            # arrow_dir is parallel to Z axis
+            if arrow_dir.z < 0:
+                # Pointing down, flip
+                arrow_obj.rotation_euler = (math.pi, 0, 0)
+            arrow_obj.location = arrow_pos + arrow_dir * (arrow_height * 0.5)
+
+        # Create solid color material for arrow (using end_color, no gradient)
+        arrow_mat_name = f"{curve_name}_Arrow_Material"
+        arrow_mat = bpy.data.materials.new(name=arrow_mat_name)
+        arrow_mat.use_nodes = True
+
+        # Enable transparency if alpha < 1
+        if alpha < 1.0:
+            arrow_mat.blend_method = 'BLEND'
+            arrow_mat.shadow_method = 'HASHED'
+
+        arrow_nodes = arrow_mat.node_tree.nodes
+        arrow_links = arrow_mat.node_tree.links
+
+        # Clear default nodes
+        arrow_nodes.clear()
+
+        # Output node
+        arrow_output = arrow_nodes.new(type='ShaderNodeOutputMaterial')
+        arrow_output.location = (600, 0)
+
+        # Mix Shader to combine emission with principled for nice glow effect
+        arrow_mix_shader = arrow_nodes.new(type='ShaderNodeMixShader')
+        arrow_mix_shader.location = (400, 0)
+        arrow_mix_shader.inputs['Fac'].default_value = 0.7  # More emission than diffuse
+
+        # Principled BSDF for base color
+        arrow_principled = arrow_nodes.new(type='ShaderNodeBsdfPrincipled')
+        arrow_principled.location = (200, -150)
+        arrow_principled.inputs['Roughness'].default_value = 0.3
+        arrow_principled.inputs['Metallic'].default_value = 0.2
+        arrow_principled.inputs['Alpha'].default_value = alpha  # Set transparency
+        arrow_principled.inputs['Base Color'].default_value = arrow_color  # Use arrow_color to match curve end
+
+        # Emission shader for glow effect
+        arrow_emission = arrow_nodes.new(type='ShaderNodeEmission')
+        arrow_emission.location = (200, 100)
+        arrow_emission.inputs['Strength'].default_value = emission_strength
+        arrow_emission.inputs['Color'].default_value = arrow_color  # Use arrow_color to match curve end
+
+        # Connect shaders to mix
+        arrow_links.new(arrow_principled.outputs['BSDF'], arrow_mix_shader.inputs[1])
+        arrow_links.new(arrow_emission.outputs['Emission'], arrow_mix_shader.inputs[2])
+
+        # Connect to output
+        arrow_links.new(arrow_mix_shader.outputs['Shader'], arrow_output.inputs['Surface'])
+
+        # Apply solid color material to arrow
+        arrow_obj.data.materials.append(arrow_mat)
+        print(f"Added arrowhead at end of trajectory '{curve_name}'")
+
+    print(f"Root trajectory '{curve_name}' created with {len(positions)} points, alpha={alpha}, gradient from {start_color[:3]} to {end_color[:3]}")
+    return curve_obj

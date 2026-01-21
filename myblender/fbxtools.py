@@ -79,6 +79,87 @@ def zero_pelvis_xy_translation_at_frame(action, target_frame):
                 break
 
 
+def rotate_animation_trajectory(action, angle_degrees):
+    """
+    Rotate XY translation keyframes around Z-axis.
+    
+    This transforms the animation trajectory so that movement in the original
+    direction becomes movement in a rotated direction.
+    
+    Args:
+        action: The Blender action to modify
+        angle_degrees: Rotation angle in degrees (positive = counter-clockwise)
+    """
+    if angle_degrees == 0:
+        return
+    
+    angle = math.radians(angle_degrees)
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    
+    # Common names for root/pelvis bone
+    pelvis_names = ['Pelvis', 'pelvis', 'Hips', 'hips', 'Root', 'root', 'mixamorig:Hips']
+    
+    # Build list of data_paths to check for XY location
+    data_paths_to_rotate = ['location']  # Armature-level location
+    for pelvis_name in pelvis_names:
+        data_paths_to_rotate.append(f'pose.bones["{pelvis_name}"].location')
+    
+    # For each data_path, find the x (index 0) and y (index 1) fcurves
+    for data_path in data_paths_to_rotate:
+        fcurve_x = None
+        fcurve_y = None
+        
+        for fcurve in action.fcurves:
+            if fcurve.data_path == data_path:
+                if fcurve.array_index == 0:
+                    fcurve_x = fcurve
+                elif fcurve.array_index == 1:
+                    fcurve_y = fcurve
+        
+        # Only rotate if both x and y fcurves exist
+        if fcurve_x is not None and fcurve_y is not None:
+            # Get all keyframe data
+            # We need to collect all values first, then apply rotation
+            x_keyframes = [(kf.co.x, kf.co.y, kf.handle_left.y, kf.handle_right.y) 
+                           for kf in fcurve_x.keyframe_points]
+            y_keyframes = [(kf.co.x, kf.co.y, kf.handle_left.y, kf.handle_right.y) 
+                           for kf in fcurve_y.keyframe_points]
+            
+            # Assuming x and y have the same keyframe times
+            # Apply rotation: x' = x*cos - y*sin, y' = x*sin + y*cos
+            for i, (kf_x, kf_y) in enumerate(zip(fcurve_x.keyframe_points, fcurve_y.keyframe_points)):
+                x_val = x_keyframes[i][1]  # co.y is the value
+                y_val = y_keyframes[i][1]
+                
+                x_handle_left = x_keyframes[i][2]
+                y_handle_left = y_keyframes[i][2]
+                
+                x_handle_right = x_keyframes[i][3]
+                y_handle_right = y_keyframes[i][3]
+                
+                # Rotate main value
+                new_x = x_val * cos_a - y_val * sin_a
+                new_y = x_val * sin_a + y_val * cos_a
+                
+                # Rotate handles
+                new_x_handle_left = x_handle_left * cos_a - y_handle_left * sin_a
+                new_y_handle_left = x_handle_left * sin_a + y_handle_left * cos_a
+                
+                new_x_handle_right = x_handle_right * cos_a - y_handle_right * sin_a
+                new_y_handle_right = x_handle_right * sin_a + y_handle_right * cos_a
+                
+                # Apply new values
+                kf_x.co.y = new_x
+                kf_y.co.y = new_y
+                
+                kf_x.handle_left.y = new_x_handle_left
+                kf_y.handle_left.y = new_y_handle_left
+                
+                kf_x.handle_right.y = new_x_handle_right
+                kf_y.handle_right.y = new_y_handle_right
+
+
 def get_mesh_lowest_z(mesh_object_list, depsgraph):
     """
     Calculate the lowest z coordinate of all mesh objects after deformation.
@@ -111,8 +192,8 @@ def get_mesh_lowest_z(mesh_object_list, depsgraph):
     return min_z
 
 
-def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0,
-                      target_frame=1, z_rotation=0):
+def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0, z_offset=0,
+                      target_frame=1, z_rotation=0, rotate_trajectory=False):
     """
     Load FBX file and shift animation so that the specified frame becomes target_frame.
 
@@ -123,6 +204,8 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0,
         y_offset: Y-axis offset for positioning
         target_frame: The frame number where the specified frame should appear (default: 1)
         z_rotation: Rotation around Z-axis in degrees (default: 0)
+        rotate_trajectory: If True, also rotate the animation trajectory (root motion).
+                          If False (default), only rotate the armature facing direction.
 
     Returns:
         Tuple of (armature, mesh_object_list)
@@ -139,6 +222,14 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0,
 
     # Find armature and mesh objects
     armature, mesh_object, mesh_object_list = find_armature_and_mesh(obj_names)
+    # Set scene frame range if armature has animation
+    if armature and armature.animation_data and armature.animation_data.action:
+        action = armature.animation_data.action
+        frame_start = int(action.frame_range[0])
+        frame_end = int(action.frame_range[1])
+        bpy.context.scene.frame_start = frame_start
+        bpy.context.scene.frame_end = frame_end
+        print(f"Animation frames set: {frame_start} to {frame_end}")
 
     # Shift animation so that 'frame' becomes 'target_frame'
     if armature and armature.animation_data and armature.animation_data.action:
@@ -155,8 +246,12 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0,
     armature.location.x += x_offset
     armature.location.y += y_offset
 
-    # Apply z rotation (convert degrees to radians)
+    # Apply z rotation
     if z_rotation != 0:
+        # Optionally rotate the animation trajectory (XY translation keyframes)
+        if rotate_trajectory and armature.animation_data and armature.animation_data.action:
+            rotate_animation_trajectory(armature.animation_data.action, z_rotation)
+        # Rotate the armature's facing direction
         armature.rotation_euler[2] += math.radians(z_rotation)
 
     # # Set material based on whether this is a virtual/ghost character
@@ -176,5 +271,6 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0,
     if min_z < 0:
         # Move armature up so the lowest point is at ground level (z=0)
         armature.location.z -= min_z
+    armature.location.z += z_offset
 
     return armature, mesh_object_list

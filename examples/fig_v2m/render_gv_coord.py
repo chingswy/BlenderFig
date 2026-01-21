@@ -8,7 +8,7 @@ from myblender.geometry import create_ray, set_camera, build_plane
 from myblender.material import set_material_i
 
 if __name__ == '__main__':
-    # ${blender} -noaudio --python examples/render_gv_coord.py
+    # ${blender} -noaudio --python examples/fig_v2m/render_gv_coord.py
     setup()
     fbx_path = '/Users/shuaiqing/Desktop/t2m/00000000_00.fbx'
 

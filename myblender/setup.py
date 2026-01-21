@@ -98,12 +98,19 @@ def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3
     return sun_object
 
 def add_area_light(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),
-                 lookat=None, strength=4.):
+                 lookat=None, strength=4., size=1.0, size_y=None, shape='SQUARE'):
     bpy.ops.object.light_add(type='AREA', location=location)
     area_object = bpy.context.object
     area_object.name = name
     area_object.data.use_nodes = True
     area_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
+    
+    # 设置面光源形状和尺寸
+    area_object.data.shape = shape
+    area_object.data.size = size
+    if size_y is not None and shape in ('RECTANGLE', 'ELLIPSE'):
+        area_object.data.size_y = size_y
+    
     if lookat is not None:
         lookat = np.array(lookat)
         loc = np.array(location)
@@ -111,6 +118,59 @@ def add_area_light(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4,
         rot_quat = direction.to_track_quat('-Z', 'Y')
         area_object.rotation_euler = rot_quat.to_euler()
     return area_object
+
+def add_spot_light(name='SpotLight', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),
+                   lookat=None, strength=100., spot_size=np.pi/4, spot_blend=0.15,
+                   shadow_soft_size=0.25, cast_shadow=True):
+    """Add a spot light to the scene.
+
+    Args:
+        name: Name of the light object
+        location: Position of the light (x, y, z)
+        rotation: Euler rotation angles (rx, ry, rz) in radians. Ignored if lookat is provided.
+        lookat: Target point (x, y, z) for the light to look at. If provided, overrides rotation.
+        strength: Light emission strength (default 100, spot lights typically need higher values)
+        spot_size: Cone angle in radians (default pi/4 = 45 degrees)
+        spot_blend: Edge softness, 0-1 (default 0.15)
+        shadow_soft_size: Soft shadow radius (default 0.25)
+        cast_shadow: Whether the light casts shadows (default True)
+
+    Returns:
+        The created spot light object
+    """
+    bpy.ops.object.light_add(type='SPOT', location=location)
+    spot_object = bpy.context.object
+    
+    if name is not None:
+        spot_object.name = name
+    
+    # Set rotation: use lookat if provided, otherwise use rotation
+    if lookat is not None:
+        lookat = np.array(lookat)
+        loc = np.array(location)
+        direction = Vector(lookat - loc)
+        rot_quat = direction.to_track_quat('-Z', 'Y')
+        spot_object.rotation_euler = rot_quat.to_euler()
+    else:
+        spot_object.rotation_euler = rotation
+    
+    # Set spot light specific properties
+    spot_object.data.spot_size = spot_size
+    spot_object.data.spot_blend = spot_blend
+    spot_object.data.shadow_soft_size = shadow_soft_size
+    
+    # Set shadow casting (for both Eevee and Cycles)
+    spot_object.data.use_shadow = cast_shadow
+    # Cycles-specific shadow setting
+    if hasattr(spot_object.data, 'cycles'):
+        spot_object.data.cycles.cast_shadow = cast_shadow
+    
+    # Set emission strength using nodes
+    spot_object.data.use_nodes = True
+    spot_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
+    
+    return spot_object
+
 
 def setLight_sun(rotation_euler, strength, shadow_soft_size = 0.05):
 	x = rotation_euler[0] * 1.0 / 180.0 * np.pi

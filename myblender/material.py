@@ -207,11 +207,8 @@ def setMat_plastic(mesh, meshColor, AOStrength = 0.0, alpha=1.,
     tree.links.new(MIXRGB.outputs['Color'], tree.nodes['Principled BSDF'].inputs['Base Color'])
 
 def set_material_i(mat, pid, metallic=0.5, specular=0.5, roughness=0.9, use_plastic=True, **kwargs):
-    if isinstance(pid, int):
-        color = get_rgb(pid)
-    else:
-        color = get_rgb(pid)
-    print(f"Setting material color: {color}")
+    color = get_rgb(pid)
+    print(f"Setting material color: {pid}  =>  {color}")
     if not use_plastic:
         # Handle both mesh objects and material objects
         if isinstance(mat, bpy.types.Object):
@@ -258,12 +255,19 @@ def setHDREnv(fn, strength=1.0):
     node_tree.links.new(node_background.outputs["Background"], node_output.inputs["Surface"])
 
 
-def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
+def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9), falloff='LINEAR'):
     """
     修正后的雾气设置：
     1. 增强了节点连接的鲁棒性（适配新旧版本Blender）。
     2. 移除了 Set Alpha 节点，确保雾气能覆盖背景。
     3. 默认颜色稍微调深一点蓝色，以便在白色背景下能看清。
+    
+    Args:
+        scene: Blender scene object
+        start: Distance at which mist starts
+        depth: Distance over which mist increases to full intensity
+        fog_color: RGB color of the fog
+        falloff: Mist falloff type, one of 'LINEAR', 'QUADRATIC', 'INVERSE_QUADRATIC'
     """
     # 1. 开启 Mist Pass
     scene.view_layers[0].use_pass_mist = True
@@ -272,7 +276,7 @@ def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
     scene.world.mist_settings.use_mist = True
     scene.world.mist_settings.start = start
     scene.world.mist_settings.depth = depth
-    scene.world.mist_settings.falloff = 'QUADRATIC'
+    scene.world.mist_settings.falloff = falloff
 
     # 3. 设置合成节点
     scene.use_nodes = True
@@ -371,4 +375,4 @@ def setup_mist_fog(scene, start=5.0, depth=20.0, fog_color=(0.7, 0.8, 0.9)):
     # 4. 结果直接输出 (不要再 Set Alpha，让雾充满背景)
     links.new(mix.outputs['Image'], composite.inputs['Image'])
 
-    print(f"Fog setup complete. Start: {start}, Depth: {depth}")
+    print(f"Fog setup complete. Start: {start}, Depth: {depth}, Falloff: {falloff}")
