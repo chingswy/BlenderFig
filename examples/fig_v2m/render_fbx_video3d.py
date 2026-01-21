@@ -117,11 +117,38 @@ def setup_following_camera(armature, camera, camera_distance, camera_height,
     print(f"Following camera: {len(keyframes)} keyframes from frame {frame_start} to {frame_end}")
 
 
+def load_config_from_json(config_path, task_name):
+    """Load task configuration from JSON file.
+    
+    Args:
+        config_path: Path to the JSON configuration file
+        task_name: Name of the task to load
+    
+    Returns:
+        dict: Merged configuration (defaults + task-specific)
+    """
+    import json
+    with open(config_path, 'r') as f:
+        full_config = json.load(f)
+    
+    defaults = full_config.get('defaults', {})
+    tasks = full_config.get('tasks', {})
+    
+    if task_name not in tasks:
+        raise ValueError(f"Task '{task_name}' not found in config. Available: {list(tasks.keys())}")
+    
+    # Merge defaults with task-specific config
+    config = defaults.copy()
+    config.update(tasks[task_name])
+    return config
+
+
 if __name__ == '__main__':
     # ${blender} -noaudio --python examples/fig_v2m/render_fbx_video3d.py -- /Users/shuaiqing/Desktop/t2m/00000000_00.fbx /Users/shuaiqing/Desktop/t2m/00000000_00.mp4
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default=None)
+    parser.add_argument('--config', type=str, default='examples/fig_v2m/render_config.json', help="Path to JSON config file")
     parser.add_argument('--video_down', type=int, default=1)
     parser.add_argument('--num_samples', type=int, default=16)
     # parser.add_argument("--body", default=[0.05, 0.326, 1.], nargs=3, type=float)
@@ -133,157 +160,17 @@ if __name__ == '__main__':
     args = parse_args(parser)
     setup()
 
-    configs = {
-        "baichuyu": {
-            "motion": "examples/fig_v2m/assets/00000005_baichuyu_pred_seed42.fbx",
-            "video": "examples/fig_v2m/assets/baichuyu_30fps.mp4",
-            "out": "results/baichuyu",
-            "layout": "none",
-            "width": 1920,
-            "height": 1080,
-            "camera_distance": 10,
-            "camera_height": 4,
-        },
-        "baichuyu_wovideo": {
-            "motion": "examples/fig_v2m/assets/baichuyu_ground.fbx",
-            "out": "results/baichuyu_wovideo",
-            "layout": "none",
-            "width": 3840,
-            "height": 2160,
-            "camera_distance": 8,
-            "camera_height": 2,
-            "body": [0.14, 0.211, 0.554],
-            "theme": "dark",
-            "ground": "plane",
-            "z_offset": -0.05,
-        },
-        "xixiyu_wovideo": {
-            "motion": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
-            "out": "results/xixiyu_wovideo",
-            "layout": "none",
-            "width": 1920,
-            "height": 1080,
-            "camera_distance": 8,
-            "camera_height": 2,
-            "body": [0.14, 0.211, 0.554],
-            "theme": "dark",
-            "z_offset": -0.1,
-        },
-        "baichuyu_compare": {
-            "motion": [
-                {
-                    "filename": "examples/fig_v2m/assets/00000005_baichuyu_pred_seed42.fbx",
-                    "x_offset": -1,
-                    "z_rotation": 0,
-                    "z_offset": 0.1,
-                },
-                {
-                    "filename": "examples/fig_v2m/assets/baichuyu_phmr.fbx",
-                    "x_offset": 1,
-                    "y_offset": 3.5,
-                    "z_rotation": 180,
-                }
-            ],
-            "video": "examples/fig_v2m/assets/baichuyu_30fps.mp4",
-            "video_args": {
-                "crop": [0.1, 0.1, 0.9, 0.75],
-                "scale": 0.5,
-            },
-            "out": "results/baichuyu_compare",
-            "layout": "none",
-            "width": 1920,
-            "height": 1080,
-            "camera_distance": 8,
-            "camera_height": 2,
-        },
-        "xixiyu": {
-            "motion": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
-            "video": "examples/fig_v2m/assets/leisaixixiyucrop.mp4",
-            "out": "results/xixiyu",
-            "layout": "none",
-            "width": 1024,
-            "height": 1024,
-            "camera_distance": 5,
-            "camera_height": 2,
-        },
-        "xixiyu_compare": {
-            "motion": [
-                {
-                    "filename": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
-                    "x_offset": -1,
-                    "z_rotation": 0,
-                },
-                {
-                    "filename": "examples/fig_v2m/assets/leisaixixiyucrop_phmr.fbx",
-                    "x_offset": 1,
-                    "z_rotation": 180,
-                }
-            ],
-            "video": "examples/fig_v2m/assets/leisaixixiyucrop.mp4",
-            "out": "results/xixiyu_compare",
-            "layout": "none",
-            "width": 1024,
-            "height": 1024,
-            "camera_distance": 5,
-            "camera_height": 2,
-        },
-        "budian1": {
-            "motion": "examples/fig_v2m/assets/budian1.fbx",
-            "video": "examples/fig_v2m/assets/budian1_30fps.mp4",
-            "out": "results/budian1",
-            "layout": "none",
-            "width": 1024,
-            "height": 1024,
-            "camera_distance": 5,
-            "camera_height": 2,
-        },
-        "budian2": {
-            "motion": "examples/fig_v2m/assets/budian2.fbx",
-            "video": "examples/fig_v2m/assets/budian2_30fps.mp4",
-            "out": "results/budian2",
-            "layout": "none",
-            "width": 1024,
-            "height": 1024,
-            "camera_distance": 5,
-            "camera_height": 2,
-        },
-        "FWUCjj44YIg_71": {
-            "motion": "examples/fig_v2m/assets/spatial/FWUCjj44YIg_71_pred_seed42.fbx",
-            "out": "results/spatial/FWUCjj44YIg_71",
-            "layout": "none",
-            "width": 1080,
-            "height": 1920,
-            "camera": "following",
-            "camera_distance": 8,
-            "camera_height": 2,
-            "z_offset": -0.05,
-        },
-        "FWUCjj44YIg_71_over": {
-            "motion": "examples/fig_v2m/assets/spatial/FWUCjj44YIg_71_pred_seed42.fbx",
-            "out": "results/spatial/FWUCjj44YIg_71",
-            "layout": "none",
-            "width": 1920,
-            "height": 1920,
-            "camera": "following",
-            "camera_distance": 8,
-            "camera_height": 6,
-            "z_offset": -0.05,
-        },
-        "qT6Rjdyld4U_25": {
-            "motion": "examples/fig_v2m/assets/spatial/qT6Rjdyld4U_25_pred_seed42.fbx",
-            "out": "results/spatial/qT6Rjdyld4U_25",
-            "layout": "none",
-            "width": 1920,
-            "height": 1920,
-            "camera": "following",
-            "camera_distance": 8,
-            "camera_height": 6,
-            "z_offset": -0.05,
-        }
-        
-    }
-
-    config = configs[args.name]
+    # Load config from JSON
+    config = load_config_from_json(args.config, args.name)
+    # Override args with config values
+    if 'body' in config:
+        args.body = config['body']
+    if 'ground' in config and isinstance(config['ground'], list):
+        args.ground = tuple(config['ground'])
+    if 'video_down' in config:
+        args.video_down = config['video_down']
+    if 'num_samples' in config:
+        args.num_samples = config['num_samples']
 
     focal = 60
     set_camera(
@@ -294,12 +181,13 @@ if __name__ == '__main__':
 
     theme = config.get("theme", "light")
     if theme == "light":
-        setup_mist_fog(
-            bpy.context.scene,
-            start=17,
-            depth=20,
-            fog_color=(1, 1, 1) # 稍微蓝一点，证明雾存在
-        )
+        if '_over' in args.name:
+            setup_mist_fog(
+                bpy.context.scene,
+                start=17,
+                depth=20,
+                fog_color=(1, 1, 1) # 稍微蓝一点，证明雾存在
+            )
         add_sunlight(
             location=(-3, 3, 5),
             lookat=(0, 0, 1),
@@ -455,11 +343,13 @@ if __name__ == '__main__':
                     for mesh_obj in mesh_object_list:
                         set_material_i(mesh_obj, tuple(args.body), use_plastic=False)
             else:
+                z_offset = config.get("z_offset", 0)
                 armature, mesh_object_list = load_fbx_at_frame(
                     smplx_name,
                     0,
                     0,
-                    target_frame=1
+                    target_frame=1,
+                    z_offset=z_offset
                 )
                 armature.location.z += 0
 
@@ -504,8 +394,8 @@ if __name__ == '__main__':
    
     if args.debug:
         set_output_properties(bpy.context.scene, output_file_path=outdir,
-            res_x=width//2, res_y=height//2,
-            tile_x=width//2//n_parallel, tile_y=height//2, resolution_percentage=100,
+            res_x=width//4, res_y=height//4,
+            tile_x=width//4//n_parallel, tile_y=height//4, resolution_percentage=100,
             format='JPEG')
     else:
         set_output_properties(bpy.context.scene, output_file_path=outdir,
