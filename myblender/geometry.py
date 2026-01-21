@@ -545,6 +545,95 @@ def build_plane(translation=(-1., -1., 0.), plane_size = 8., alpha=1, use_transp
     plane.data.materials.append(floor_mat)
     return plane
 
+def build_solid_plane(translation=(0., 0., 0.), plane_size=100., 
+                      color=(0.02, 0.02, 0.02, 1.0),
+                      roughness=0.1, metallic=0.5, specular=0.5):
+    """
+    Build a solid-color reflective plane (non-checkerboard).
+    
+    Args:
+        translation: Position of the plane
+        plane_size: Size of the plane
+        color: RGBA color tuple for the floor
+        roughness: Surface roughness (0.0 = mirror-like reflection, 1.0 = matte)
+        metallic: Metallic property (0.0 = dielectric, 1.0 = metallic)
+        specular: Specular reflection intensity
+    """
+    plane = create_plane_blender(size=plane_size, name="Floor")
+    plane.location = translation
+    floor_mat = add_material("Material_Plane", use_nodes=True, make_node_tree_empty=False)
+    # Set solid color with reflective properties via Principled BSDF
+    principled = floor_mat.node_tree.nodes["Principled BSDF"]
+    principled.inputs['Base Color'].default_value = color
+    principled.inputs['Roughness'].default_value = roughness
+    principled.inputs['Metallic'].default_value = metallic
+    principled.inputs['Specular'].default_value = specular
+    plane.data.materials.append(floor_mat)
+    return plane
+
+def create_volume_cube(location=(0., 0., 5.), size=20., density=0.05, 
+                       anisotropy=0.3, name="VolumeCube"):
+    """
+    Create a volume cube for volumetric lighting (Tyndall effect / god rays).
+    
+    Args:
+        location: Center position of the cube (x, y, z)
+        size: Size of the cube (should be large enough to cover the scene)
+        density: Volume density (lower = more transparent, e.g., 0.01-0.1)
+        anisotropy: Light scattering direction (-1 to 1, positive = forward scattering)
+        name: Name for the cube object
+    
+    Returns:
+        The created volume cube object
+    """
+    # Create a cube
+    bpy.ops.mesh.primitive_cube_add(size=size, location=location)
+    cube = bpy.context.object
+    cube.name = name
+    
+    # Create volume material
+    vol_mat = bpy.data.materials.new(name=f"{name}_Material")
+    vol_mat.use_nodes = True
+    
+    nodes = vol_mat.node_tree.nodes
+    links = vol_mat.node_tree.links
+    
+    # Clear default nodes
+    nodes.clear()
+    
+    # Create output node
+    output = nodes.new(type='ShaderNodeOutputMaterial')
+    output.location = (300, 0)
+    
+    # Create Principled Volume shader
+    volume = nodes.new(type='ShaderNodeVolumePrincipled')
+    volume.location = (0, 0)
+    volume.inputs['Color'].default_value = (1.0, 1.0, 1.0, 1.0)  # White/neutral
+    volume.inputs['Density'].default_value = density
+    volume.inputs['Anisotropy'].default_value = anisotropy  # Forward scattering for god rays
+    
+    # Connect volume to the Volume socket (not Surface)
+    links.new(volume.outputs['Volume'], output.inputs['Volume'])
+    
+    # Assign material to cube
+    cube.data.materials.append(vol_mat)
+    
+    # Make the cube not cast shadows and not visible in reflections
+    # so it only affects the volumetric lighting
+    if hasattr(cube, 'visible_shadow'):
+        cube.visible_shadow = False
+        cube.visible_diffuse = False
+        cube.visible_glossy = False
+    else:
+        try:
+            cube.cycles_visibility.shadow = False
+            cube.cycles_visibility.diffuse = False
+            cube.cycles_visibility.glossy = False
+        except:
+            pass
+    
+    return cube
+
 def bound_from_keypoint(keypoint, padding=0.1, min_z=0):
     v = keypoint[..., -1]
     k3d_flat = keypoint[v>0.01]
