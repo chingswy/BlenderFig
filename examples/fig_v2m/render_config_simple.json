@@ -1,0 +1,126 @@
+{
+  "_comment": "Render configuration for simple motion sequences",
+  "defaults": {
+    "body": [0.14, 0.211, 0.554],
+    "ground": [0.784, 0.784, 0.784, 1.0],
+    "video_down": 1,
+    "num_samples": 256,
+    "layout": "none",
+    "theme": "light",
+    "focal": 60,
+    "fps": 30
+  },
+  "tasks": {
+    "0sRAVPIKrMg_36": {
+      "motion": "examples/fig_v2m/assets/simple/0sRAVPIKrMg_36_pred_seed42.fbx",
+      "out": "results/simple/0sRAVPIKrMg_36",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "6uIG9nWUGIc_29": {
+      "motion": "examples/fig_v2m/assets/simple/6uIG9nWUGIc_29_pred_seed42.fbx",
+      "out": "results/simple/6uIG9nWUGIc_29",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "8EB58JU62mM_13": {
+      "motion": "examples/fig_v2m/assets/simple/8EB58JU62mM_13_pred_seed42.fbx",
+      "out": "results/simple/8EB58JU62mM_13",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "9bbDVj_WaZs_3": {
+      "motion": "examples/fig_v2m/assets/simple/9bbDVj_WaZs_3_pred_seed42.fbx",
+      "out": "results/simple/9bbDVj_WaZs_3",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "9FLxJ5-DOnU_5": {
+      "motion": "examples/fig_v2m/assets/simple/9FLxJ5-DOnU_5_pred_seed42.fbx",
+      "out": "results/simple/9FLxJ5-DOnU_5",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "aO2WgvdPl_g_25": {
+      "motion": "examples/fig_v2m/assets/simple/aO2WgvdPl_g_25_pred_seed42.fbx",
+      "out": "results/simple/aO2WgvdPl_g_25",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "GP73Jb3wEnQ_8": {
+      "motion": "examples/fig_v2m/assets/simple/GP73Jb3wEnQ_8_pred_seed42.fbx",
+      "out": "results/simple/GP73Jb3wEnQ_8",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "HzwYhmAARC8_12": {
+      "motion": "examples/fig_v2m/assets/simple/HzwYhmAARC8_12_pred_seed42.fbx",
+      "out": "results/simple/HzwYhmAARC8_12",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "iqEkFkDbpFE_4": {
+      "motion": "examples/fig_v2m/assets/simple/iqEkFkDbpFE_4_pred_seed42.fbx",
+      "out": "results/simple/iqEkFkDbpFE_4",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "NnMJB4VFQgA_13": {
+      "motion": "examples/fig_v2m/assets/simple/NnMJB4VFQgA_13_pred_seed42.fbx",
+      "out": "results/simple/NnMJB4VFQgA_13",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "oIsDXT3jYbw_10": {
+      "motion": "examples/fig_v2m/assets/simple/oIsDXT3jYbw_10_pred_seed42.fbx",
+      "out": "results/simple/oIsDXT3jYbw_10",
+      "width": 2048,
+      "height": 2048,
+      "camera": "following",
+      "camera_distance": 6,
+      "camera_height": 2,
+      "z_offset": 0
+    }
+  }
+}
+
