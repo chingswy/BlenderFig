@@ -150,13 +150,14 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default=None)
     parser.add_argument('--config', type=str, default='examples/fig_v2m/render_config.json', help="Path to JSON config file")
     parser.add_argument('--video_down', type=int, default=1)
-    parser.add_argument('--num_samples', type=int, default=16)
+    parser.add_argument('--num_samples', type=int, default=256)
     # parser.add_argument("--body", default=[0.05, 0.326, 1.], nargs=3, type=float)
     parser.add_argument("--body", default=[0.14, 0.211, 0.554], nargs=3, type=float)
     parser.add_argument("--ground", default=(200/255, 200/255, 200/255, 1.0), nargs=4, type=float,
     help="Ground color: (94/255, 124/255, 226/255, 1.0) 青色")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--render", action="store_true")
+    parser.add_argument("--denoising", action="store_true")
     args = parse_args(parser)
     setup()
 
@@ -383,7 +384,7 @@ if __name__ == '__main__':
         bpy.data.objects["Camera"],
         num_samples=args.num_samples,
         use_transparent_bg=False,
-        use_denoising=True,
+        use_denoising=args.denoising,
     )
 
     n_parallel = 1
