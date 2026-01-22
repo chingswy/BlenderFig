@@ -261,29 +261,64 @@ if __name__ == '__main__':
             spot_blend=0.5,
             shadow_soft_size=0.3
         )
+    
+    elif theme == "dark_compare":
+        # 舞台聚光灯效果：纯黑背景 + 聚光灯照亮人物
         
-        # # 体积光 (Volumetric Lighting / 丁达尔效应)
-        # # 创建一个大的体积立方体，包裹整个场景
-        # create_volume_cube(
-        #     location=(0, 0, 5),      # 中心位置稍高，覆盖人物上方空间
-        #     size=20,                  # 足够大以覆盖整个场景
-        #     density=0.05,             # 低密度，产生若隐若现的光束效果
-        #     anisotropy=0.5,           # 正向散射，让光束更明显
-        #     name="VolumetricFog"
-        # )
-        
-        # # 体积光专用聚光灯 - 从头顶打下来，产生明显的光柱效果
-        # add_spot_light(
-        #     name='VolumetricSpot',
-        #     location=(0, 2, 10),       # 从正上方稍偏后打下来
-        #     lookat=(0, 0, 0),
-        #     strength=800,              # 较强的光，穿透体积产生光柱
-        #     spot_size=np.pi/10,        # 约18度，形成集中的光柱
-        #     spot_blend=0.2,            # 边缘较锐利
-        #     shadow_soft_size=0.02,
-        #     cast_shadow=True           # 投射阴影，增强光柱效果
-        # )
+        # 纯黑背景
+        build_rgb_background(bpy.context.scene.world, rgb=(0.2, 0.2, 0.2, 1), strength=1.)
+        setup_mist_fog(
+            bpy.context.scene,
+            start=config["camera_distance"] + 1,
+            depth=config["camera_distance"] + 5,
+            fog_color=(0.02, 0.02, 0.02) # 稍微蓝一点，证明雾存在
+        )
 
+        # 深色地面，略有反射以显示光圈
+        ground_mode = config.get("ground", "checkerboard")
+        if ground_mode == "checkerboard":
+            build_plane(translation=(0, 0, 0), plane_size=100,
+                        white=(0.02, 0.02, 0.02, 1), black=(0, 0, 0, 1),
+                        roughness=0.7, metallic=0.1, specular=0.2)
+        elif ground_mode == "plane":
+            build_solid_plane(translation=(0, 0, 0), plane_size=100,
+                              color=(0.02, 0.02, 0.02, 1.0),  # Dark gray/black
+                              roughness=0.1, metallic=0.5, specular=0.5)
+        
+        # 舞台光圈 - 从正上方打，在地面形成明显的圆形光圈
+        add_spot_light(
+            name='StageSpot',
+            location=(0, 0, 8),
+            lookat=(0, 0, 0),
+            strength=600,
+            spot_size=np.pi/4,  # 约22度，形成约2-3米直径的光圈
+            spot_blend=0.5,     # 边缘柔和虚化
+            shadow_soft_size=0.05,
+            cast_shadow=False   # 不投射阴影，避免顶光产生难看的阴影
+        )
+        
+        # 主聚光灯 - 从前方偏左上方打光，照亮人物
+        add_spot_light(
+            name='KeySpot',
+            location=(-2, 5, 4),
+            lookat=(0, 0, 1),
+            strength=500,
+            spot_size=np.pi/4,  # 30度
+            spot_blend=0.3,
+            shadow_soft_size=0.05
+        )
+        
+        # 补光 - 从前方偏右侧，较弱，填充阴影
+        add_spot_light(
+            name='FillSpot',
+            location=(2, 4, 3),
+            lookat=(0, 0, 1),
+            strength=200,
+            spot_size=np.pi/4,
+            spot_blend=0.5,
+            shadow_soft_size=0.3
+        )
+        
     # Import the SMPLX animation
     smplx_name = config["motion"]
 
@@ -331,18 +366,22 @@ if __name__ == '__main__':
         elif config["layout"] == "none":
             if isinstance(smplx_name, list):
                 for motion in smplx_name:
+                    z_offset = motion.get("z_offset", 0)
+                    print(f"Loading {motion['filename']} with z_offset={z_offset}")
                     armature, mesh_object_list = load_fbx_at_frame(
                         motion["filename"],
                         0,
                         x_offset=motion["x_offset"],
                         y_offset=motion.get("y_offset", 0),
-                        z_offset=motion.get("z_offset", 0),
+                        z_offset=z_offset,
                         target_frame=1,
                         z_rotation=motion.get("z_rotation", 0)
                     )
+                    color = motion.get("color", args.body)
 
                     for mesh_obj in mesh_object_list:
-                        set_material_i(mesh_obj, tuple(args.body), use_plastic=False)
+                        set_material_i(mesh_obj, tuple(color), use_plastic=False)
+                    
             else:
                 z_offset = config.get("z_offset", 0)
                 armature, mesh_object_list = load_fbx_at_frame(
@@ -359,6 +398,10 @@ if __name__ == '__main__':
 
     else:
         raise ValueError(f"Unsupported file format: {smplx_name}. Supported formats: .npz, .fbx")
+
+    # Override scene frame_end if specified in config
+    if "end_frame" in config:
+        bpy.context.scene.frame_end = config["end_frame"]
 
     # Setup following camera if specified
     camera_mode = config.get("camera", "static")
