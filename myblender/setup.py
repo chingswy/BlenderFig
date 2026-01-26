@@ -61,7 +61,7 @@ def clean_objects(name='Cube', version = '2.83') -> None:
     bpy.ops.object.delete(use_global=False)
 
 def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),
-                 lookat=None, strength=4.):
+                 lookat=None, strength=4., cast_shadow=True):
     """Add a sun light to the scene.
 
     Args:
@@ -94,7 +94,12 @@ def add_sunlight(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3
 
     sun_object.data.use_nodes = True
     sun_object.data.node_tree.nodes["Emission"].inputs["Strength"].default_value = strength
-
+    # Set shadow casting (for both Eevee and Cycles)
+    sun_object.data.use_shadow = cast_shadow
+    # Cycles-specific shadow setting
+    if hasattr(sun_object.data, 'cycles'):
+        sun_object.data.cycles.cast_shadow = cast_shadow
+    
     return sun_object
 
 def add_area_light(name='Light', location=(10., 0., 5.), rotation=(0., -np.pi/4, 3.14),

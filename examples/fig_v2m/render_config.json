@@ -4,7 +4,7 @@
     "body": [0.14, 0.211, 0.554],
     "ground": [0.784, 0.784, 0.784, 1.0],
     "video_down": 1,
-    "num_samples": 16,
+    "num_samples": 64,
     "layout": "none",
     "theme": "light",
     "focal": 60,
@@ -33,7 +33,7 @@
       "z_offset": -0.05
     },
     "xixiyu_wovideo": {
-      "motion": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
+      "motion": "examples/fig_v2m/assets/xixiyu.fbx",
       "out": "results/xixiyu_wovideo",
       "width": 3840,
       "height": 2160,
@@ -42,33 +42,31 @@
       "body": [0.14, 0.211, 0.554],
       "theme": "dark",
       "ground": "plane",
-      "z_offset": -0.1
+      "z_offset": 0
     },
     "baichuyu_compare": {
       "motion": [
         {
-          "filename": "examples/fig_v2m/assets/00000005_baichuyu_pred_seed42.fbx",
-          "x_offset": -1,
+          "filename": "examples/fig_v2m/assets/baichuyu_ground.fbx",
+          "x_offset": 0,
           "z_rotation": 0,
-          "z_offset": 0.1
+          "z_offset": 0
         },
         {
           "filename": "examples/fig_v2m/assets/baichuyu_phmr.fbx",
-          "x_offset": 1,
+          "x_offset": -1.5,
           "y_offset": 3.5,
+          "color": [0.55, 0.21, 0.14],
           "z_rotation": 180
         }
       ],
-      "video": "examples/fig_v2m/assets/baichuyu_30fps.mp4",
-      "video_args": {
-        "crop": [0.1, 0.1, 0.9, 0.75],
-        "scale": 0.5
-      },
       "out": "results/baichuyu_compare",
-      "width": 1920,
-      "height": 1080,
+      "width": 2048,
+      "height": 2048,
       "camera_distance": 8,
-      "camera_height": 2
+      "camera_height": 2,
+      "theme": "dark_compare",
+      "ground": "plane"
     },
     "xixiyu": {
       "motion": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
@@ -82,22 +80,25 @@
     "xixiyu_compare": {
       "motion": [
         {
-          "filename": "examples/fig_v2m/assets/00000003_leisaixixiyucrop_pred_seed42.fbx",
-          "x_offset": -1,
+          "filename": "examples/fig_v2m/assets/xixiyu.fbx",
+          "x_offset": 0,
           "z_rotation": 0
         },
         {
-          "filename": "examples/fig_v2m/assets/leisaixixiyucrop_phmr.fbx",
-          "x_offset": 1,
+          "filename": "examples/fig_v2m/assets/xixiyu_phmr.fbx",
+          "x_offset": -1.5,
+          "y_offset": 3.5,
+          "color": [0.55, 0.21, 0.14],
           "z_rotation": 180
         }
       ],
-      "video": "examples/fig_v2m/assets/leisaixixiyucrop.mp4",
       "out": "results/xixiyu_compare",
-      "width": 1024,
-      "height": 1024,
-      "camera_distance": 5,
-      "camera_height": 2
+      "width": 1920,
+      "height": 1080,
+      "camera_distance": 8,
+      "camera_height": 2,
+      "theme": "dark_compare",
+      "ground": "plane"
     },
     "budian1": {
       "motion": "examples/fig_v2m/assets/budian1.fbx",
@@ -129,7 +130,7 @@
     },
     "FWUCjj44YIg_71_over": {
       "motion": "examples/fig_v2m/assets/spatial/FWUCjj44YIg_71_pred_seed42.fbx",
-      "out": "results/spatial/FWUCjj44YIg_71",
+      "out": "results/spatial/FWUCjj44YIg_71_over",
       "width": 3840,
       "height": 3840,
       "camera": "following",
@@ -157,21 +158,21 @@
       "camera_height": 10,
       "z_offset": -0.05
     },
-    "GgKkv56m3gE_25": {
+    "PSTgwCXm8D4_15": {
       "motion": "examples/fig_v2m/assets/spatial/PSTgwCXm8D4_15_pred_seed42.fbx",
-      "out": "results/spatial/GgKkv56m3gE_25",
-      "width": 3840,
-      "height": 3840,
+      "out": "results/spatial/PSTgwCXm8D4_15",
+      "width": 1920,
+      "height": 1080,
       "camera": "following",
       "camera_distance": 6,
       "camera_height": 2,
       "z_offset": 0
     },
-    "GgKkv56m3gE_25_over": {
+    "PSTgwCXm8D4_15_over": {
       "motion": "examples/fig_v2m/assets/spatial/PSTgwCXm8D4_15_pred_seed42.fbx",
-      "out": "results/spatial/GgKkv56m3gE_25_over",
-      "width": 3840,
-      "height": 3840,
+      "out": "results/spatial/PSTgwCXm8D4_15_over",
+      "width": 1920,
+      "height": 1080,
       "camera": "following",
       "camera_distance": 4,
       "camera_height": 10,
@@ -235,6 +236,212 @@
       "camera": "following",
       "camera_distance": 5,
       "camera_height": 8,
+      "z_offset": 0
+    },
+    "football8": {
+      "motion": [
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed42.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed43.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed44.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed45.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed46.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed47.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed48.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed49.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "z_offset": 0.2
+        }
+      ],
+      "out": "results/football8",
+      "width": 1920,
+      "height": 1080,
+      "camera": "following",
+      "layout": "multi_flow",
+      "camera_distance": 8,
+      "camera_height": 15,
+      "z_offset": 0
+    },
+    "football_look": {
+      "motion": [
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed45.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "start_frame": 60,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed42.fbx",
+          "x_offset": -2,
+          "z_rotation": 0,
+          "start_frame": 60,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed43.fbx",
+          "x_offset": -1,
+          "z_rotation": 0,
+          "start_frame": 60,
+          "z_offset": 0.2
+        },
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed44.fbx",
+          "x_offset": 1,
+          "z_rotation": 0,
+          "start_frame": 60,
+          "z_offset": 0.2
+        },
+
+        {
+          "filename": "examples/fig_v2m/assets/ours8seeds/ONuAu0B1Khs_25_pred_seed46.fbx",
+          "x_offset": 2,
+          "z_rotation": 0,
+          "start_frame": 60,
+          "z_offset": 0
+        }
+      ],
+      "out": "results/football_look",
+      "end_frame": 60,
+      "width": 1920,
+      "height": 1080,
+      "camera": "none",
+      "layout": "multi_flow",
+      "camera_distance": 20,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "football_phmr": {
+      "motion": [
+        {
+          "filename": "examples/fig_v2m/assets/comparison/football/phmr_ONuAu0B1Khs_25_30fps_phmr.fbx",
+          "x_offset": 0,
+          "z_rotation": 180,
+          "z_offset": 0
+        }
+      ],
+      "out": "results/football_phmr",
+      "width": 1920,
+      "height": 1080,
+      "camera": "following",
+      "camera_keyframe_interval": 10,
+      "camera_distance": 8,
+      "camera_height": 15
+    },
+    "golf": {
+      "motion": [
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed42.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed43.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed45.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed46.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed47.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed48.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        },
+        {
+          "filename": "examples/fig_v2m/assets/comparison/golf/ours/rrDjmEEGsz8_38_pred_seed49.fbx",
+          "x_offset": 0,
+          "z_rotation": 0,
+          "z_offset": 0
+        }
+      ],
+      "out": "results/golf",
+      "width": 1920,
+      "height": 1080,
+      "camera": "following",
+      "layout": "multi_flow",
+      "camera_distance": 8,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "YH261BYTv90_24": {
+      "motion": "examples/fig_v2m/assets/comparison/walk/00000001_YH261BYTv90_24_pred_seed42.fbx",
+      "out": "results/YH261BYTv90_24",
+      "width": 1920,
+      "height": 1080,
+      "camera": "following",
+      "camera_distance": 10,
+      "camera_height": 2,
+      "z_offset": 0
+    },
+    "YH261BYTv90_24_phmr": {
+      "motion": [
+        {
+          "filename": "examples/fig_v2m/assets/comparison/walk/YH261BYTv90_24_30fps_phmr.fbx",
+          "x_offset": 0,
+          "z_rotation": 180
+        }
+      ],
+      "out": "results/YH261BYTv90_24_phmr",
+      "width": 1920,
+      "height": 1080,
+      "camera": "following",
+      "camera_distance": 10,
+      "camera_height": 2,
       "z_offset": 0
     }
   }

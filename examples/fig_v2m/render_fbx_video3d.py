@@ -395,11 +395,60 @@ if __name__ == '__main__':
 
                 for mesh_obj in mesh_object_list:
                     set_material_i(mesh_obj, tuple(args.body), use_plastic=False)
+        
+        elif config["layout"] == "multi_flow":
+            # Multi flow layout: all people's first frame Pelvis aligned to the first person's Pelvis
+            if not isinstance(smplx_name, list):
+                raise ValueError("multi_flow layout requires motion to be a list of FBX files")
+            
+            first_pelvis_pos = None
+            armatures = []
+            
+            for i, motion in enumerate(smplx_name):
+                z_offset = motion.get("z_offset", 0)
+                print(f"Loading {motion['filename']} with z_offset={z_offset}")
+                armature, mesh_object_list = load_fbx_at_frame(
+                    motion["filename"],
+                    motion.get("start_frame", 0),
+                    x_offset=0,  # Initially load at origin
+                    y_offset=0,
+                    z_offset=z_offset,
+                    target_frame=1,
+                    z_rotation=motion.get("z_rotation", 0)
+                )
+                
+                # Get Pelvis position at first frame
+                pelvis_pos = get_pelvis_position(armature, 1)
+                
+                if i == 0:
+                    # First person: record their Pelvis position as reference
+                    first_pelvis_pos = pelvis_pos.copy()
+                    print(f"Reference Pelvis position (person 0): {first_pelvis_pos}")
+                else:
+                    # Subsequent persons: align to first person's Pelvis position (X, Y, Z)
+                    offset_x = first_pelvis_pos[0] - pelvis_pos[0]
+                    offset_y = first_pelvis_pos[1] - pelvis_pos[1]
+                    offset_z = first_pelvis_pos[2] - pelvis_pos[2]
+                    armature.location.x += offset_x + motion.get("x_offset", 0)
+                    armature.location.y += offset_y
+                    armature.location.z += offset_z
+                    print(f"Person {i} aligned: offset=({offset_x:.3f}, {offset_y:.3f}, {offset_z:.3f})")
+                
+                color = motion.get("color", args.body)
+                for mesh_obj in mesh_object_list:
+                    set_material_i(mesh_obj, tuple(color), use_plastic=False)
+                
+                armatures.append(armature)
+            
+            # Use the first armature for camera following if needed
+            armature = armatures[0]
 
     else:
         raise ValueError(f"Unsupported file format: {smplx_name}. Supported formats: .npz, .fbx")
 
     # Override scene frame_end if specified in config
+    if "start_frame" in config:
+        bpy.context.scene.frame_start = config["start_frame"]
     if "end_frame" in config:
         bpy.context.scene.frame_end = config["end_frame"]
 
