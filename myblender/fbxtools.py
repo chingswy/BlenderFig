@@ -215,7 +215,7 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0, z_offset=0,
 
     # Import FBX
     bpy.ops.import_scene.fbx(filepath=fbx_path)
-
+    
     keys_new = set(bpy.data.objects.keys())
     obj_names = list(keys_new - keys_old)
 
@@ -241,6 +241,9 @@ def load_fbx_at_frame(fbx_path, frame, x_offset, y_offset=0, z_offset=0,
         zero_xy_translation_at_frame(action, target_frame)
         # Zero out Pelvis bone's x and y translation at target_frame
         zero_pelvis_xy_translation_at_frame(action, target_frame)
+
+    if armature is None:
+        raise ValueError(f"No armature found in FBX file: {fbx_path}. Objects found: {obj_names}")
 
     # Apply x_offset after zeroing out original translation
     armature.location.x += x_offset
